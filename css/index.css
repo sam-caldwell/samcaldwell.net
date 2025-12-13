@@ -1,0 +1,54 @@
+/* Base typography */
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  line-height: 1.5;
+  background-color: #333333;
+  color: #ffffff;
+}
+
+/* Header text color override */
+header { color: #F0F0F0; }
+header .card { color: #F0F0F0; }
+
+/* Layout helpers */
+.full-height { height: 100vh; }
+.content-col { overflow-y: auto; min-height: 0; }
+
+/* Footer background and readable text */
+footer {
+  background-color: #C0C0C0;
+  color: #111111;
+  height: 30px;
+}
+footer .container {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* Nav bar styling */
+.site-nav {
+  background-color: #C0C0C0;
+  color: #111111;
+  height: 30px;
+}
+.site-nav .container {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+.site-nav .nav-link {
+  color: #111111;
+  font-variant: small-caps;
+  font-variant-caps: small-caps;
+}
+.site-nav .nav-link:hover, .site-nav .nav-link:focus {
+  color: #000000;
+  text-decoration: none;
+}
+
+/* Optional: Keep code blocks readable on dark bg */
+code { background: #f3f3f3; color: #111; padding: .15rem .3rem; border-radius: .25rem; }
+
+h1 { text-align: center;}
