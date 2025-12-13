@@ -1,0 +1,6 @@
+version: STSv1
+mode: testing
+mx: samcaldwell.net
+mx: *.samcaldwell.net
+mx: alt3.aspmx.l.google.com
+max_age: 86400
