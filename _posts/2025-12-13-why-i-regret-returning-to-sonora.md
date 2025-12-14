@@ -1,8 +1,10 @@
 ---
 layout: default
-title: Why I Regret Returning to Sonora (samcaldwell.net)
+title: Why I Regret Returning to Sonora
+description: In 2021 I returned to Sonora, Texas to buy a house and try to make a difference here. I regretted it. Here's why....
+keywords: sonora, texas, 76950, sutton county, politics, economy, small town, opinion
 ---
-<h1>Why I Regret Returning to Sonora</h1>
+
 <h2>Some History...</h2>
 <p>
     In 1915 or so, William Peyton Caldwell moved his family to Sonora, Texas, where he worked the remainder of
@@ -105,7 +107,8 @@ title: Why I Regret Returning to Sonora (samcaldwell.net)
     that we don't try. Our city has some pretty cool people working here to do what they can with what we give
     them...and we don't give them much. We have failed economically on every level.
 </p>
-<h2>Sonora: a Self-Defeating Community</h2>
+<img src="/img/peoples-republic-of-sonorastan-logo.png" alt="Logo of the People's Republic of Sonorastan"  />
+<h2>Sonora: A Self-Defeating Community</h2>
 <p>
     A couple of years ago, three high school seniors were at the Dairy Queen. I was sitting there with my laptop
     working on something, and one of them asked me what I do for a living. I told him, and we started a conversation
@@ -228,13 +231,20 @@ title: Why I Regret Returning to Sonora (samcaldwell.net)
 </p>
 <h2>Conclusion</h2>
 <p>
-    It saddens me to see this town every day when I go for a walk. This town has so much potential, it is a tragedy
-    to see it becoming more like Eldorado when it could be more like Fredricksberg. Not long ago, I walked down to
-    the cemetery to reflect and visit old guys who used to treat me well. I stop where my great-grandparents and
+    It saddens me to see this town every day when I go for a walk. This town has <i>so much</i> potential, it is a 
+    tragedy to see it becoming more like Eldorado when it could be more like Fredricksberg. Not long ago, I walked down 
+    to the cemetery to reflect and visit old guys who used to treat me well. I stop where my great-grandparents and
     grandparents are buried, and I ask William Peyon Caldwell what he thought Sonora would become when he was building
     houses and other structures around this town. I wonder if he would be happy to see one of the houses he built
     still standing (albeit barely). Then I walk away and realize I truly regret returning to this place. Its only
     redeeming virtue is that it is cheap living here, and I am not tempted to go to any of the non-existent social
     events. This gives me free time to pursue another college degree (online) and a few more certifications. But is
     this really how people other than me would want to live?
+</p>
+<p>
+    This town was four times its current size when I was a kid, and it will continue to waste away until three things
+    happen: (1) The 50% of registered voters who didn't vote in 2024 do so, (2) Business owners invest in their people
+    to retain good talent and motivate people to WANT to actually work here, and (3) Folks start to treat one people
+    with more than the veneer of decency.  It's going to take a long road to dig ourselves out of the rut we are in,
+    but it could happen if folks just commit.
 </p>

@@ -21,6 +21,12 @@ defaults:
       type: "pages"
     values:
       layout: page
+  # Blog posts use the same page layout (global template)
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: page
 
 exclude:
   - Gemfile
