@@ -51,4 +51,7 @@ footer .container {
 /* Optional: Keep code blocks readable on dark bg */
 code { background: #f3f3f3; color: #111; padding: .15rem .3rem; border-radius: .25rem; }
 
-h1 { text-align: center;}
+
+.center { text-align: center;}
+.left { text-align: left;}
+.right { text-align: right;}

@@ -1,0 +1,13 @@
+<nav class="site-nav flex-shrink-0">
+  <div class="container py-0 px-3">
+    <ul class="nav">
+      {% assign current = page.url %}
+      {% for item in site.data.navigation %}
+      <li class="nav-item">
+        <a class="nav-link px-2 {% if current == item.url %}active{% endif %}" href="{{ item.url | relative_url }}">{{ item.title }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</nav>
+

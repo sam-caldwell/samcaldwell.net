@@ -1,0 +1,9 @@
+.git
+_site
+.jekyll-cache
+vendor
+node_modules
+.idea
+*.swp
+*.tmp
+

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="{{ page.lang | default: site.lang | default: 'en' }}">
+{% include head.html %}
+<body>
+  <div class="container-fluid min-vh-100 d-flex flex-column p-0">
+    {% include header.html %}
+    {% include nav.html %}
+    <main class="flex-fill overflow-auto content-col">
+      <div id="content" class="container py-3">
+        {{ content }}
+      </div>
+    </main>
+    {% include footer.html %}
+  </div>
+
+  <script src="{{ '/js/bootstrap.bundle.min.js' | relative_url }}"></script>
+  <script src="{{ '/js/index.js' | relative_url }}"></script>
+</body>
+</html>
