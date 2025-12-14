@@ -1,0 +1,52 @@
+# samcaldwell.net
+
+A simple Jekyll site for samcaldwell.net. Local development is containerized with Docker and driven via Make.
+
+## Quick Start
+
+- Requirements: Docker, Make
+- Dev server: `make dev` then open `http://localhost:4000`
+- Stop container: `make stop`
+
+## Create a New Blog Post
+
+- One-liner: `make new TITLE="My First Post"`
+- Interactive: `make new` and enter a title when prompted
+- What it does:
+  - Creates `_posts/YYYY-MM-DD-my-first-post.md`
+  - Adds front matter (`layout: page`, `title`, `date`, `description`, `tags`)
+  - The post auto-appears on `/blog/`
+
+### Import from DOCX (preserves math)
+
+- Requires: `pandoc` (install via Homebrew: `brew install pandoc`)
+- Command: `make import-docx DOCX=CRSCE-2025-v1.docx TITLE="Cross Sums Compression and Expansion (CRSCE)"`
+- Output: `_posts/YYYY-MM-DD-cross-sums-compression-and-expansion-crsce.html` with `math: true` and HTML/MathML for equations.
+
+## Project Structure
+
+- `_layouts/` — `default.html` (site chrome), `page.html` (wraps page/post content)
+- `_includes/` — shared partials (`head`, `header`, `nav`, `footer`)
+- `pages/` — top-level pages (e.g., `/about/`, `/gpg-keys/`, `/blog/`)
+- `_posts/` — blog posts named `YYYY-MM-DD-title.md`
+- `_data/navigation.yml` — nav items rendered by `_includes/nav.html`
+- `css/`, `js/`, `img/` — static assets
+- `.well-known/` — included for deployment via `_config.yml`
+
+## Configuration
+
+- `_config.yml`
+  - `permalink: pretty`
+  - Posts default to `layout: page` to use the global template
+  - Plugins: `jekyll-seo-tag`, `jekyll-sitemap`
+  - `exclude:` includes `README.md` so it’s not published
+  - MathJax loads when `page.math: true` or `site.math: true`.
+
+## Notes
+
+- Bootstrap sourcemap requests are disabled to avoid 404s in dev.
+- A devtools probe placeholder lives at `.well-known/appspecific/com.chrome.devtools.json`.
+
+## License
+
+Not specified in this repository. If you need one, add it explicitly.

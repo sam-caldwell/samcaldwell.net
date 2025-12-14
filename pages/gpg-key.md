@@ -1,4 +1,5 @@
 ---
+author: Sam Caldwell
 title: GPG Keys
 permalink: /gpg-keys/
 description: GPG Encryption Keys
