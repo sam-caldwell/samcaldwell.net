@@ -6,9 +6,23 @@
   <title>
     {% if page.title %}{{ page.title }}{% if site.title and page.title != site.title %} | {{ site.title }}{% endif %}{% else %}{{ site.title }}{% endif %}
   </title>
+
   {% if page.description or site.description %}
   <meta name="description" content="{{ page.description | default: site.description }}" />
   {% endif %}
+
+  {% if page.author or site.author %}
+  <meta name="author" content="{{ page.author | default: site.author }}" />
+  {% endif %}
+
+  {% if page.keywords or site.keywords %}
+  <meta name="keywords" content="{{ page.keywords | default: site.keywords }}" />
+  {% endif %}
+
+  {% if page.refresh %}
+  <meta http-equiv="refresh" content="{{ page.refresh }}">
+  {% endif %}
+
 
   {% seo %}
 
