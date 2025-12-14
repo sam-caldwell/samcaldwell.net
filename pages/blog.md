@@ -3,6 +3,7 @@ title: Blog
 permalink: /blog/
 layout: page
 description: Posts and articles by Sam Caldwell.
+keyword: politics, technology, science, society, ramblings
 ---
 
 <ul class="list-group">

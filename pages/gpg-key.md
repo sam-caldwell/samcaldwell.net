@@ -2,7 +2,11 @@
 title: GPG Keys
 permalink: /gpg-keys/
 description: GPG Encryption Keys
+keywords: gpg keys, encryption, secure communication, commit signing
 ---
+
+While John Cornyn may not believe you should have secure communications, I definitely do!
+
 
 ## For Communication:
 
