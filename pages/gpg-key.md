@@ -1,0 +1,29 @@
+---
+title: GPG Keys
+permalink: /gpg-keys/
+description: GPG Encryption Keys
+---
+
+## For Communication:
+<code>
+tbd
+</code>
+
+
+## For Code Verification
+<code>
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEaJvORRYJKwYBBAHaRw8BAQdA9A9EuGMw3D5K3HffpG70NNUCGUh6RO+3hqO5
+Jt30MVm0LlNhbSBDYWxkd2VsbCAobWJwLm00KSA8Z2l0aHViQHNhbWNhbGR3ZWxs
+Lm5ldD6IkwQTFgoAOxYhBHrVh65djPfi1I6AU8d3AyB+OHJUBQJom85FAhsDBQsJ
+CAcCAiICBhUKCQgLAgQWAgMBAh4HAheAAAoJEMd3AyB+OHJUXEIA/i0tOFR1+w3Y
+piLGaLBLJMR7ydEMjHnbIwYru1Qg+IeGAP4i+t2ySS/8/Apdn7JT+nsOfBTzOKeS
+xXh0C5E69PVKB7g4BGibzkUSCisGAQQBl1UBBQEBB0DDRmw8lk06QBwJqXGWHQcK
+YfgkreZU68frI09jGyQqMwMBCAeIeAQYFgoAIBYhBHrVh65djPfi1I6AU8d3AyB+
+OHJUBQJom85FAhsMAAoJEMd3AyB+OHJUCjgA/2DbglTl9NrpuGefJ/FsZnwIsAlC
+QTmBmNcesX2FnddNAQCFPU0A+6Jr/8yPvW3dIhDYnsxIa/N5ia+tlFPmzjUDCQ==
+=vat6
+
+-----END PGP PUBLIC KEY BLOCK-----
+</code>
