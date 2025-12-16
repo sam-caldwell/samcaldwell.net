@@ -65,8 +65,8 @@ footer .container {
 
 /* Optional: Keep code blocks readable on dark bg */
 code {
-    background: #f3f3f3;
-    color: #111;
+    color: #000000;
+    background-color: #F0F0F0;
     padding: .15rem .3rem;
     border-radius: .25rem;
 }

@@ -1,0 +1,796 @@
+---
+layout: page
+title: The Game of Beliefs Protocol (GOBP)&colon; A Message-Passing Mechanism for CRSCE Decompression
+date: 2025-12-15 22:01:18-0600
+description: This document describes the CRSCE Game Of Beliefs Protocol (GOBP), a message-passing mechanism for CRSCE decompression.
+keywords: CRSCE, compression, decompression, information theory, computer science, mathematics
+math: true
+---
+
+<h2 class="center">Abstract</h2>
+<p><em>
+    <a href="/2025/12/14/cross-sums-compression-and-expansion-crsce/">Cross-Sums Compression
+        and Expansion (CRSCE)</a> encodes arbitrary binary data as fixed-size bit-matrices and stores
+    a small set of directional “cross-sum” projections (lateral, vertical, diagonal, anti-diagonal) together with a
+    cryptographic hash chain. Compression is therefore structural, lossless, and content-independent, with a predictable
+    output size. The corresponding decompression task is not “inflate-bytes” in the conventional sense; it is a
+    constrained reconstruction problem closely related to discrete (binary) tomography, where a large binary matrix must
+    be recovered from a few projections. This companion post defines the Game of Beliefs Protocol (GOBP): a
+    protocol-layer abstraction for coordinating distributed probabilistic inference (especially loopy belief
+    propagation) with incentive-compatible information sharing, producing an implementable path toward practical CRSCE
+    decompression. The protocol treats decompression as inference on a factor graph, and it treats solver cooperation as
+    a repeated game scored by strictly proper scoring rules, aligning individual incentives with truthful belief
+    reporting.
+</em></p>
+<hr/>
+<h2 class="center">Motivation and Context</h2>
+<p>
+    CRSCE’s design goal—predictable, content-independent compression—moves “compression” away from statistical modeling
+    of source redundancy and toward a deterministic structural representation. In CRSCE, a binary input stream is
+    represented as a series of fixed-size <span class="math inline">$s \times s$</span> bit-matrices, and for each
+    matrix,
+    four directional projections (“cross-sums”) are computed (lateral, vertical, diagonal, anti-diagonal). A
+    cryptographic hash chain (SHA-256) is used to ensure integrity and exact reconstruction.
+</p>
+<p>
+    This design has an immediate consequence: decompression is no longer a single-pass inversion of a local coding
+    transform; it is the recovery of a high-dimensional discrete object from a small number of aggregate constraints.
+    That is, given a binary matrix <span class="math inline">$X∈{0,1}^{s×s}$</span>, CRSCE stores a set of line sums
+    in several directions. Recovering <span class="math inline">$X$</span> from those sums is a well-studied theme in
+    discrete tomography, where ambiguity (many solutions satisfy the same projections) is a central difficulty.
+</p>
+<p>
+    The hash chain addresses integrity, but it does not automatically make reconstruction computationally easy. SHA-256
+    is explicitly designed so that (in the absence of special structure) finding a preimage matching a digest is
+    infeasible. CRSCE’s hope is that the projection constraints shrink the feasible set so aggressively that
+    reconstruction becomes tractable in practice; nevertheless, implementing decompression “coming soon” is itself an
+    admission that reconstruction is the hard part. It's taken thirty (30) years so far.
+</p>
+<p>
+    GOBP is proposed as the missing bridge between (i) the mathematics of message passing on graphical models and
+    (ii) a systems reality in which decompression is performed by multiple cooperating (or partially adversarial) solver
+    processes. It is a protocol because decompression will likely be iterative, distributed, and instrumented; and it
+    is a “game” because in distributed settings, reliable outcomes often require incentive alignment (or, at minimum,
+    robust aggregation mechanisms).
+</p>
+<hr/>
+<h2 class="center">CRSCE Decompression as a Reconstruction Problem</h2>
+<br/>
+<h3>What CRSCE Stores</h3>
+<br/>
+<p>
+    CRSCE can be characterized as follows:
+</p>
+<ol>
+    <li>Arbitrary binary input is represented as fixed-size <span class="math inline">$s \times s$</span> bit matrices;
+    </li>
+    <li>Four cross-sum projections are computed (lateral, vertical, diagonal, anti-diagonal);</li>
+    <li>A cryptographic hash chain (SHA-256) provides verifiability and exact reconstruction; and</li>
+    <li>The format is compact with a predictable compression ratio determined by its block size (<em>s</em>).</li>
+</ol>
+<p>
+    This description is enough to formalize the decompression challenge without depending on unpublished internal
+    drafts. The key point is that the stored representation is dominated by aggregated constraints (projection sums)
+    rather than local invertible transforms. That places decompression in the family of constrained reconstruction
+    problems, not in the family of textbook entropy coding decoders.
+</p>
+<h3>Reconstruction from Projections and the Role of Ambiguity</h3>
+<p>
+    In discrete tomography, a standard choice of directions is precisely the set CRSCE highlights: row sums, column
+    sums, diagonal sums, and anti-diagonal sums. The reconstruction of a binary image/matrix from these projections
+    is typically underdetermined; multiple binary matrices can share the same line sums, and the feasible set can be
+    large.
+</p>
+<p>
+    This ambiguity is not a mere theoretical nuisance; it is the core systems issue. “Decompression” must pick the
+    <em>exact</em> original matrix, not any matrix consistent with the projections. CRSCE’s cryptographic hash chain
+    provides a definitive accept/reject oracle: a candidate reconstruction is correct if and only if it yields the
+    required hash-chain consistency. But an accept/reject oracle is not a constructive inversion method; without a good
+    search strategy, the oracle simply tells you that most candidates are wrong.
+</p>
+<br/>
+<h3>Computational Difficulty</h3>
+<br/>
+<p>
+    Discrete tomography and related binary reconstruction problems are known to have deep computational complexity.
+    Complexity analyses consider reconstruction when marginal sums are prescribed in multiple directions, including
+    diagonal and anti-diagonal constraints. More broadly, binary tomography is frequently posed as a non-convex,
+    combinatorial recovery problem; common formulations are NP-hard, motivating relaxations, heuristics, and
+    specialized algorithms.
+</p>
+<p>
+    CRSCE decompression is therefore best approached as a <em>solver</em> problem: we must exploit the structure induced
+    by the projections, plus the “ground truth” selection power of the hash chain, using algorithms that can navigate
+    huge combinatorial spaces efficiently. Message passing (belief propagation and its loopy variants) is one of the
+    few families of methods that scale to very large sparse constraint structures in practice, as evidenced by its role
+    in decoding modern error-correcting codes on sparse graphs.
+</p>
+<hr/>
+<h2>Graphical Models and Loopy Belief Propagation as a Decompression Engine</h2>
+<br/>
+<h3>Factor Graph View of the CRSCE Block</h3>
+<br/>
+<p>
+    Consider a single CRSCE block: an unknown binary matrix <span>X</span> with entries <span class="math inline">
+    $x_{r,c}∈{0,1}$</span>. The compressed representation supplies line sums. Abstractly:
+</p>
+<ul>
+    <li>
+        Row constraints: <span class="math inline">$ \displaystyle {LSM}_{r} = \sum_{c = 0}^{s - 1}{CSM}_{rc} $</span>
+        for each row <span class="math inline">r</span>.
+    </li>
+    <li>
+        Column constraints: <span class="math inline">$ \displaystyle {VSM}_{c} = \sum_{r = 0}^{s - 1}{CSM}_{r,c}$
+        </span> for each column <span>c</span>.
+    </li>
+    <li>
+        Diagonal constraints: sums over lines of constant <span class="math inline">
+        $\displaystyle {DSM}_{r} = \sum_{c = 0}^{s - 1}{CSM_{r,(r + c)\ mod\ s}} $</span>
+    </li>
+    <li>
+        Anti-diagonal constraints: sums over lines of constant <span class="math inline">
+        $\displaystyle {XSM}_{r} = \sum_{c = 0}^{s - 1}{CSM_{r,(s - r + i - 1)mod\ s}} $</span>
+    </li>
+</ul>
+<p>
+    Each constraint is a high-arity relation among the participating bits. This is naturally represented as a factor
+    graph: variable nodes for the bits, factor nodes for each line-sum constraint, and edges connecting a factor to
+    the variables on that line. The factor-graph formalism exists exactly to capture such “global function factors
+    into local functions” structure and to support message passing.
+</p>
+
+<p>
+    However, two obstacles appear immediately:
+</p>
+<ol>
+    <li>the factor graph is loopy (many short cycles on a grid-like structure), and</li>
+    <li>the constraints are “hard” (they are equalities, not soft likelihoods).</li>
+</ol>
+<p>
+    Both obstacles are addressable in practice, but they require careful engineering and a willingness to accept
+    iterative approximate inference as an internal tool.
+</p>
+<br/>
+<h3>Belief Propagation and Its “Loopy” Extension</h3>
+<p>
+    Belief propagation (BP) computes exact marginals on trees, and loopy belief propagation (LBP) applies essentially
+    the same message updates on graphs with cycles, iterating until messages stabilize (if they do). The conceptual
+    update is local: each message from node <span class="math inline">$i$</span> to neighbor <span class="math inline">
+    $j$</span> summarizes what <span class="math inline">$i$</span> believes about <span class="math inline">$j$</span>
+    based on <span class="math inline">$i</span>’s local evidence and messages received from other neighbors.
+</p>
+<p>
+    LBP has a variational interpretation: fixed points correspond to stationary points of the Bethe free energy
+    approximation. This helps explain both its effectiveness (good approximations in many sparse settings) and its
+    pathologies (non-convergence, multiple fixed points).
+</p>
+<p>
+    For CRSCE decompression, the objective is not merely approximate marginals; it is an <em>exact</em> reconstruction.
+    This is where LBP should be understood as a <em>heuristic engine</em> inside a larger exact search-and-verification
+    loop. This “approximate inference guides exact decisions” pattern is common in sparse-graph decoding and constraint
+    satisfaction: message passing concentrates probability mass; decimation or branching fixes confident variables;
+    verification enforces correctness.
+</p>
+<br/>
+<h3>Why a Protocol Layer Is Needed</h3>
+<br/>
+<p>
+    If decompression were a single-process local algorithm, the story could stop at “implement LBP plus verification.”
+    But CRSCE’s reconstruction problem is large, iterative, and naturally parallelizable. Moreover, decompression for
+    CRSCE is likely to be performed in environments where:
+</p>
+<ul>
+    <li>multiple solver instances explore different initializations, schedules, or heuristics;</li>
+    <li>hardware heterogeneity exists (CPU, GPU, clusters);</li>
+    <li>partial progress and intermediate beliefs are valuable artifacts (debugging, reproducibility, auditing);</li>
+    <li>there may be untrusted or partially trusted participants (e.g., crowd compute, federated solvers, third-party
+        accelerators).
+    </li>
+</ul>
+<p>
+    The Game of Beliefs Protocol (GOBP) is proposed to standardize how beliefs are represented, exchanged, aggregated,
+    audited, and rewarded (or at least weighted), so that “distributed belief propagation” becomes an interoperable
+    system rather than a bespoke research codebase.
+</p>
+<hr/>
+<h2>Defining the Game of Beliefs Protocol (GOBP)</h2>
+<br/>
+<h3>High-Level Definition</h3>
+<br/>
+<p>
+    <strong>Game of Beliefs Protocol (GOBP)</strong> is a protocol for coordinating distributed probabilistic inference
+    on a shared graphical model by:
+</p>
+<ol>
+    <li>standardizing message formats for beliefs and constraints,</li>
+    <li>defining aggregation rules for combining beliefs from multiple sources,</li>
+    <li>embedding an incentive mechanism (a repeated game) that rewards accurate, honest probabilistic reporting, and
+    </li>
+    <li>providing cryptographic commitments and audit trails for solver outputs and intermediate claims.</li>
+</ol>
+<p>
+    The “belief” in GOBP is explicit: it is a probability distribution (or a parameterization of one) over a variable’s
+    state, or over a factor’s local configuration. The “game” in GOBP is likewise explicit: participants choose what
+    beliefs to publish, and their long-run influence (and optionally compensation) is determined by a scoring mechanism
+    evaluated against realized ground truth when reconstruction completes.
+</p>
+<hr/>
+<h3>Why “Game”: Incentives and Truthful Probabilities</h3>
+<br/>
+<p>
+    GOBP’s incentive layer is anchored in a mature idea: <em>strictly proper scoring rules</em>. A scoring rule assigns
+    a numeric score to a probabilistic forecast once the actual outcome is known. A scoring rule is strictly proper if
+    a forecaster uniquely maximizes expected score by reporting their true belief distribution. Classic examples
+    include the Brier (quadratic) score and the logarithmic score.
+</p>
+<p>
+    In a decompression setting, once the correct matrix is identified (and verified via the CRSCE hash chain),
+    each bit’s realized value becomes ground truth. The protocol can then score prior probability reports about those
+    bits (or about derived events), updating reputations, weights, or payouts accordingly. This is analogous in spirit
+    to information aggregation in prediction markets, where scoring rules (including market scoring rules) are used to
+    elicit and aggregate beliefs.
+</p>
+<p>
+    Game theory provides the language for analyzing such mechanisms: we want equilibria in which “truthful reporting and
+    good-faith computation” are best responses. The foundational notion of equilibrium in strategic games is Nash
+    equilibrium. GOBP does not require full rational-agent modeling to be useful, but it is designed so that—if
+    participants are even approximately incentive-driven&mdash;honesty is aligned with reward.
+</p>
+<br/>
+<h3>Entities, Roles, and Trust Model</h3>
+<br/>
+<p>
+    GOBP defines a small set of roles; a real system may collapse them or distribute them:
+</p>
+<ul>
+    <li><strong>Problem Publisher</strong>: publishes the canonical CRSCE decompression instance (block projections +
+        hash targets) and the derived factor graph schema.
+    </li>
+    <li><strong>Solver</strong>: runs inference (LBP, search, relaxations, hybrids) and publishes belief messages.</li>
+    <li><strong>Aggregator</strong>: combines belief messages into consensus messages using a defined pooling rule.</li>
+    <li><strong>Verifier</strong>: checks cryptographic commitments, message signatures, and (when a candidate solution
+        is proposed) validates constraints and hash-chain consistency.
+    </li>
+    <li><strong>Ledger (optional)</strong>: an append-only log of commitments, messages, scores, and final artifacts.
+    </li>
+</ul>
+<p>
+    GOBP’s trust model is deliberately flexible: it can be run as a cooperative protocol among trusted solver
+    processes (where the “game” reduces to structured telemetry and weighted ensembles), or it can be run among
+    partially trusted parties in a future (as-yet-defined state), where cryptographic commitments and scoring are
+    necessary to manage strategic behavior. The later is an ideal state where crowdsourced computation could make
+    very large archives cost effective across organizations.
+</p>
+<hr/>
+<h2>The Decompression Graph: From CRSCE Projections to a Factorization Suitable for Message Passing</h2>
+<h3>The Core Challenge: High-Arity Constraints on a Loopy Grid</h3>
+<p>
+    A line-sum constraint touches <em>O(s)</em> bits. Naively, a factor node connected to all bits in a row would have
+    an exponential internal state space if represented as a full table. Practical message passing therefore relies on
+    structured factors (e.g., “cardinality” or “sum” factors) whose messages can be computed efficiently using dynamic
+    programming.
+</p>
+<p>
+    Discrete tomography literature frequently frames reconstruction from row/column/diagonal/anti-diagonal sums as
+    solving a system of constraints that is often underdetermined. This underdetermination is not a reason to abandon
+    message passing; it is a reason to expect posteriors to remain uncertain until additional information (priors,
+    additional constraints, or hash-based verification feedback) breaks symmetries.
+</p>
+<br/>
+<h3>Converting Hard Equalities into Soft Potentials</h3>
+<br/>
+<p>
+    BP is typically defined for strictly positive factors (to avoid degeneracies), whereas hard equalities create
+    zero-probability configurations. There are multiple pragmatic approaches:
+</p>
+<ol>
+    <li>
+        <strong>Soft penalty potentials</strong>: replace equality with a sharply peaked likelihood, e.g.
+        <span class="math inline">$ψ(S) = exp(−λ (S − R)^2)$</span> where <span class="main inline">$S$</span> is the
+        line sum and <span>R</span> is the required projection. As <span class="main inline">$λ→∞$</span>, the
+        distribution concentrates on satisfying assignments.
+    </li>
+    <li>
+        <strong>Constraint propagation + BP hybrid</strong>: maintain exact feasibility ranges for partial sums (a CSP
+        view) while BP provides probabilistic guidance for branching.
+    </li>
+    <li>
+        <strong>Augmentation with auxiliary variables</strong>: represent a sum constraint by a chain of small factors
+        that enforce incremental sums, enabling exact “local” constraint enforcement without exponential tables.
+    </li>
+</ol>
+<p>
+    The third approach is especially compatible with factor graphs and message passing as presented in the sum-product
+    literature. It is also conceptually aligned with the way sparse-graph codes are decoded: parity checks are
+    constraints, yet message passing is still feasible because factors have exploitable algebraic structure.
+</p>
+<br/>
+<h3>Where the Hash Chain Fits</h3>
+<br/>
+<p>
+    CRSCE uses a SHA-256 hash chain for integrity and exact reconstruction.
+    In protocol terms, the hash chain is a global oracle: it certifies correctness, but it does not decompose into small
+    local factors over bits in any obvious way.
+</p>
+
+<p>
+    GOBP therefore treats the hash chain primarily as:
+</p>
+<ol>
+    <li>a terminal verifier (accept/reject for a candidate block or sequence of blocks), and</li>
+    <li>a source of incremental pruning when combined with search strategies that propose partial reconstructions in a
+        structured way.
+    </li>
+</ol>
+<p>
+    Hash chains are a well-established cryptographic primitive (e.g., in one-time password systems and micropayment
+    schemes). This matters for GOBP because the protocol leans on commitments and auditability: when a solver claims “I
+    believed <span class="math inline">$bit(r,c)=1$</span> with probability 0.93,” that claim should be time-stamped,
+    immutable, and attributable, so that scoring is meaningful and manipulation after the fact is infeasible.
+</p>
+<hr/>
+<h2>The Protocol Proper: Messages, Rounds, Aggregation, and Scoring</h2>
+<br/>
+<h3>Canonical Problem Instance Identifier</h3>
+<br/>
+<p>
+    Each decompression task (typically: one CRSCE block, or one “work unit” derived from a block) is assigned a
+    canonical identifier:
+</p>
+<pre>
+problem_id = H(
+    version ||
+    s ||
+    projection_payload ||
+    hash_chain_target ||
+    normalization_rules ||
+    factorization_schema_id
+)
+</pre>
+<p>
+    Here <span class="math inline">$H$</span> is SHA-256 (or another protocol-specified hash). The purpose is not
+    cryptographic novelty; it is interoperability. Every participant must agree on exactly what problem is being solved
+    and what “truth” means.
+</p>
+<br/>
+<h3>Belief Message Types</h3>
+<br/>
+<p>
+    GOBP standardizes a small set of message types. A minimal core is:
+</p>
+<ul>
+    <li><strong>VAR_BELIEF</strong>: marginal belief for a variable node, e.g. <span class="math inline">P(x=1)</span>
+        (or log-odds / LLR).
+    </li>
+    <li><strong>EDGE_MSG</strong>: directed message along an edge in the factor graph (LBP-style), either
+        variable-to-factor or factor-to-variable.
+    </li>
+    <li><strong>FACTOR_STATE</strong>: optional summaries for structured factors (e.g., distributions over partial sums
+        in a row/column chain).
+    </li>
+    <li><strong>COMMIT</strong> / <strong>REVEAL</strong>: cryptographic commitment to a batch of messages, enabling
+        later auditing and scoring.
+    </li>
+    <li><strong>CANDIDATE</strong>: a proposed full reconstruction (or a compressed representation of one) intended for
+        verifier checking.
+    </li>
+    <li><strong>CHALLENGE</strong>: a request to justify or reproduce messages (useful when solvers are untrusted or
+        when debugging).
+    </li>
+</ul>
+<p>
+    Messages can be encoded compactly. For binary variables, the most numerically stable representation is often the
+    log-likelihood ratio (LLR), widely used in iterative decoding on sparse graphs. The protocol does not mandate LLR,
+    but it should define a canonical conversion and numeric bounds.
+</p>
+<br/>
+<h3>Rounds and Schedules</h3>
+<br/>
+<p>
+    GOBP is agnostic to synchronous vs asynchronous scheduling, but it standardizes <em>round semantics</em>:
+</p>
+<ol>
+    <li><strong>Compute</strong>: each solver updates local messages using its current neighborhood state.</li>
+    <li><strong>Publish</strong>: solvers publish messages and commitments for the round.</li>
+    <li><strong>Aggregate</strong>: an aggregator computes consensus messages from the set of published messages.</li>
+    <li><strong>Feedback</strong>: consensus messages become the next-round inputs; optional decimation events are
+        announced.
+    </li>
+    <li><strong>Propose</strong>: when enough certainty exists, solvers (or the aggregator) propose a candidate
+        reconstruction.
+    </li>
+    <li><strong>Verify</strong>: verifiers check projection constraints and the hash-chain target; accept or reject.
+    </li>
+</ol>
+<p>
+    Loopy belief propagation’s behavior depends strongly on scheduling, damping, and normalization. Practical
+    implementations emphasize these stabilization choices. GOBP therefore treats “message update rule” as an algorithm
+    plug-in, but it requires that each message batch declare enough metadata to be interpretable: iteration index,
+    damping used, normalization scheme, and factorization schema.
+</p>
+<br/>
+<h3>Aggregation as Opinion Pooling</h3>
+<br/>
+<p>
+    When multiple solvers publish beliefs about the same variable or edge, the protocol must combine them. A natural
+    family of aggregators are <em>log opinion pools</em>:
+    <span class="math display">$$
+        p_{consensus}(x) \propto \prod_k P_k(x)^{wk}
+    $$</span>
+    where <span class="math inline">$w_k ≥ 0$</span> are weights (e.g., reputations or inverse-variance estimates).
+    This is a “product-of-experts” style merge: consistent strong beliefs reinforce; disagreement yields calibrated
+    uncertainty. In LLR form for binary variables, this reduces to a weighted sum of logits—computationally conveniently.
+</p>
+<p>
+    In adversarial settings, the aggregator should be robust: e.g., trim extreme logits, cap influence, or require
+    stake. GOBP does not prescribe a single robustness method, but it does require that the aggregation rule be
+    declared and reproducible.
+</p>
+<br/>
+<h3>Scoring: Turning Beliefs into a Repeated Game</h3>
+<br/>
+<p>
+    Once a candidate reconstruction is accepted, every variable’s realized value becomes ground truth for scoring
+    earlier beliefs. GOBP proposes strictly proper scoring rules as the default incentive layer.
+</p>
+<p>
+    For a binary variable <span class="math inline">$x∈{0,1}$</span> and a reported probability <span class="math inline">
+    $p=P(x=1)$</span>:
+</p>
+<ul>
+    <li>
+        <strong>Log score</strong>: <span class="math inline">$S(p,x) = log(p)$</span> if <span class="math inline">
+        $x=1$</span>, else <span class="math inline">$log(1−p)$</span>. (Strictly proper under standard conditions.)
+    </li>
+    <li>
+        <strong>Quadratic/Brier score</strong>: often expressed (up to affine transforms) as
+        <span class="math inline">$S(p,x) = −(p−x)^2$</span>.
+    </li>
+</ul>
+<p>
+    <strong>Proposition (Incentive Compatibility; Proof Sketch).</strong>
+    Let a participant’s subjective belief about <span>$x$</span> be <span>$q$</span>, and suppose the protocol pays
+    expected score <span>$E[S(p,x)]$</span>. If <span>$S$</span> is strictly proper, then <span>$p=q$</span> uniquely
+    maximizes <span>$E[S(p,x)]$</span>. This is a central theorem in the scoring rule literature and is developed in
+    modern generality by Gneiting &amp; Raftery.
+</p>
+<p>
+    In GOBP, a participant’s long-run weight <span>$w_k$</span> in aggregation can be an increasing function of
+    cumulative score.
+    This creates a feedback loop: accurate forecasters gain influence; inaccurate or deceptive forecasters lose
+    influence.
+    Conceptually, this resembles the way market scoring rules support information aggregation in prediction markets.
+</p>
+<hr/>
+<h2>How GOBP Solves CRSCE Decompression in Practice</h2>
+<br/>
+<h3>The Decompression Pipeline as “Inference → Decimation/Search → Verify”</h3>
+<br/>
+<p>
+    A GOBP-based CRSCE decompressor is best understood as a pipeline:
+</p>
+<ol>
+    <li><strong>Build</strong> a factor graph representation of the projection constraints for a CRSCE block.</li>
+    <li><strong>Infer</strong> approximate marginals (LBP) under a soft constraint model.</li>
+    <li><strong>Decimate / Branch</strong>: fix high-confidence bits or structured subsets; reduce the problem.</li>
+    <li><strong>Propose</strong> a full candidate reconstruction when constraints are satisfiable and uncertainty is low
+        enough.
+    </li>
+    <li><strong>Verify</strong> the candidate using the stored projections and the SHA-256 hash-chain target.</li>
+    <li><strong>Backtrack / Restart</strong> if verification fails; incorporate failure as information (e.g., forbid
+        assignments, adjust priors, perturb messages).
+    </li>
+</ol>
+<p>
+    This pattern is not speculative in the abstract; it is the same conceptual architecture that makes message passing
+    useful in other large combinatorial inference problems, such as decoding on sparse graphs (LDPC), where iterative
+    message passing is combined with hard parity constraints and final codeword verification.
+</p>
+
+<p>
+    The critical difference is that CRSCE constraints are geometric (line sums in multiple directions), not algebraic
+    parity checks. But discrete tomography shows that these constraints can be expressed as systems with large solution
+    spaces; the question becomes whether iterative inference can drive the system toward the unique solution singled
+    out by the hash chain.
+</p>
+<br />
+<h3>Why Distributed Solvers Help</h3>
+<br />
+<p>
+    LBP on loopy graphs can converge to different fixed points depending on initialization, damping, and update
+    schedule. In CRSCE decompression, this sensitivity is an opportunity: multiple solver instances can explore diverse
+    trajectories through belief space, and an aggregator can combine them into a better-calibrated consensus. This is
+    “ensemble inference” expressed as a network protocol.
+</p>
+
+<p>
+    Moreover, CRSCE blocks (as publicly described) are naturally partitioned by matrix, and thus decompression can be
+    parallelized by block. Within a block, the factor graph can be partitioned spatially (sub-grids, diagonal bands) or
+    by constraint families (rows vs columns vs diagonals), enabling partial-message specialization.
+</p>
+<br />
+<h3>Integrating Verification Feedback without Breaking Cryptographic Assumptions</h3>
+<br />
+<p>
+    SHA-256’s security properties mean we should not expect to extract “local gradient information” from the digest.
+    The hash is used as a binary oracle: correct/incorrect. Nonetheless, verification feedback is still useful because
+    it confirms when the search has reached the unique satisfying reconstruction. In practice, solvers use hash
+    mismatch as a signal to restart with perturbed beliefs or alternative decimation orders.
+</p>
+<p>
+    Hash chains and related constructions are widely used precisely because they are easy to verify and hard to invert.
+    In GOBP, this translates into a clean separation of responsibilities: inference proposes; verification certifies.
+</p>
+<hr/>
+<h2>Implementation Blueprint</h2>
+<br />
+<h3>Data Structures: Factor Graph Schema for CRSCE Projections</h3>
+<br />
+<p>
+    A practical decompressor should avoid explicit high-arity factor tables. Instead:
+</p>
+<ul>
+    <li>Represent each bit <span>$x_{r,c}$</span> as a binary variable node.</li>
+    <li>Represent each line constraint as a structured factor implemented by DP over partial sums.</li>
+    <li>Cache factor-to-variable messages and variable-to-factor messages in compact numeric form (float32 LLRs are
+        often enough, with care for saturation).
+    </li>
+    <li>Use damping and normalization (as in practical LBP) to stabilize updates.</li>
+</ul>
+<p>
+    The discrete tomography literature explicitly highlights the common four-direction setting
+    (row/column/diagonal/anti-diagonal) and emphasizes underdetermination. That should inform engineering: you should
+    expect large regions of near-symmetry early in inference, and you should rely on decimation and verification to
+    break ties.
+</p>
+<br />
+<h3>Message Update Engine</h3>
+<br />
+<p>
+    LBP message updates can follow the standard sum-product semantics on factor graphs.
+    The protocol does not force a single engine; it does, however, require that a solver declare:
+</p>
+<ul>
+    <li>update schedule (synchronous vs asynchronous; ordering);</li>
+    <li>damping parameter(s);</li>
+    <li>numerical stabilization (normalization, log-space computation);</li>
+    <li>stopping criteria (max delta threshold, max iterations).</li>
+</ul>
+<p>
+    In sparse-graph decoding contexts, efficient sum-product implementations often operate directly on LLRs, with
+    well-studied approximations to reduce complexity.
+    CRSCE structured sum-factors will require different DP internals, but the same numeric discipline applies.
+</p>
+<br />
+<h3>Protocol Transport and Cryptographic Commitments</h3>
+<br />
+<p>
+    GOBP messages should be authenticated (signatures or MACs depending on trust model) and optionally committed in
+    batches:
+</p>
+<pre>
+    commitment = SHA256( canonical_encode(message_batch) )
+</pre>
+<p>
+    SHA-256 is standardized by NIST’s Secure Hash Standard.
+    Batch commitments support auditability: after reconstruction, a solver reveals its batch, and others verify that the
+    batch hash matches the prior commitment.
+</p>
+<p>
+    This “commit now, reveal later” logic is orthogonal to CRSCE’s internal hash chain, but it leverages the same
+    cryptographic principle: one-way hashing produces
+    cheap-to-check integrity with strong resistance to retroactive manipulation. Hash chains have long histories in
+    security systems (e.g., S/KEY) and related schemes.
+</p>
+<br />
+<h3>A Minimal Wire Format (Illustrative)</h3>
+<br />
+<p>
+    A compact binary encoding (CBOR, protobuf, flatbuffers) can represent:
+</p>
+<br />
+<pre>
+    Message {
+        uint32  version;
+        bytes32 problem_id;
+        uint32  round;
+        enum    type;        // VAR_BELIEF, EDGE_MSG, COMMIT, REVEAL, CANDIDATE, ...
+        uint64  author_id;
+        bytes   payload;     // type-specific
+        bytes   signature;   // optional, depends on trust model
+    }
+</pre>
+
+<p>
+    Payload examples:
+</p>
+<ul>
+    <li>VAR_BELIEF payload might be (<span>$variable_id$</span>,<span>$p1$</span>) with <span>$p1$</span> encoded as
+    float16/float32 or fixed-point logit.</li>
+    <li>EDGE_MSG payload might be (edge_id, direction, vector/params).</li>
+    <li>CANDIDATE payload might be a compressed representation of an entire reconstructed block (e.g., bit-packed matrix)
+    intended for verification.</li>
+</ul>
+<br />
+<h3>Termination and Correctness Guarantees</h3>
+<br />
+<p>
+    GOBP does not promise that inference converges (LBP does not guarantee convergence on loopy graphs).
+    Instead, GOBP promises that any claimed reconstruction can be verified against:
+</p>
+<ol>
+    <li>the projection constraints (deterministically checkable), and</li>
+    <li>the CRSCE SHA-256 hash-chain target (deterministically checkable).</li>
+</ol>
+<p>
+    Correctness of the final output therefore reduces to correctness of the verifier checks, not to correctness of any
+    participant’s inference method.
+    This is an important separation: the protocol encourages good inference, but it does not require blind trust in it.
+</p>
+<hr/>
+<h2>Security, Robustness, and Adversarial Considerations</h2>
+<br />
+<h3>Threat Model Sketch</h3>
+<br />
+<p>
+    A decompression protocol can face:
+</p>
+<ul>
+    <li><strong>Noise / incompetence</strong>: some solvers are simply inaccurate.</li>
+    <li><strong>Strategic misreporting</strong>: solvers publish beliefs designed to influence aggregation rather than
+        to reflect genuine posterior beliefs.
+    </li>
+    <li><strong>Sybil behavior</strong>: an attacker spawns many identities to bias consensus.</li>
+    <li><strong>Replay / equivocation</strong>: a solver changes its story after the fact.</li>
+</ul>
+<p>
+    GOBP’s defense posture is layered:
+</p>
+<ul>
+    <li><strong>Commitments</strong> reduce equivocation and enable audit.</li>
+    <li><strong>Strictly proper scoring rules</strong> make honest reporting a best response in expectation (when
+        rewards matter).
+    </li>
+    <li><strong>Robust aggregation</strong> limits the influence of outliers.</li>
+    <li><strong>Stake/reputation weighting</strong> makes influence expensive to acquire and easy to lose.</li>
+</ul>
+<br />
+<h3>Why Proper Scoring Rules Are the Right Primitive</h3>
+<br />
+<p>
+    Proper scoring rules were developed specifically to assess and elicit probabilistic beliefs.
+    The key is not merely “reward accuracy” but “reward calibrated probabilities.”
+    In decompression, a participant that always reports extreme probabilities (0 or 1) might sometimes be right, but
+    when wrong it should be punished sharply.
+    The log score provides exactly that behavior.
+</p>
+<p>
+    Importantly, GOBP does not require monetary payments; “score” can control purely internal weights, rate limits, or
+    acceptance thresholds. The game metaphor remains apt because the protocol defines payoffs (influence) and strategies
+    (what beliefs to publish), and because equilibrium analysis is still the correct lens for understanding long-run
+    behavior.
+</p>
+<p><em>
+    The author is not naive. In most cases, the GOBP solution will be implemented within a single organization's
+    ecosystem, not crowdsourced across a diverse cloud of heterogeneous hardware.  This is due partly to liability and
+    risk as well as to regulatory constraints.  Nonetheless, it is a prudent design consideration, especially where
+    the decompressed data is ciphertext.
+</em></p>
+<hr/>
+<h2>Limitations and Research Questions</h2>
+<br />
+<h3>The Fundamental Ambiguity of Four-Direction Projections</h3>
+<br />
+<p>
+    Reconstruction from row/column/diagonal/anti-diagonal sums can be ambiguous; projections may not uniquely determine
+    the binary matrix. CRSCE resolves this at the data-format level by including cryptographic verification (hash chain),
+    but computational ambiguity remains: a solver must still locate the uniquely correct matrix among potentially many
+    projection-consistent matrices.
+</p>
+<br />
+<h3>LBP Stability and Fixed Points</h3>
+<br />
+<p>
+    LBP is approximate and may not converge; convergence depends on coupling strength, loop structure, damping, and
+    schedule.
+    A GOBP implementation should treat “non-convergence” as normal and incorporate restart/perturbation strategies,
+    plus decimation heuristics that convert soft beliefs into hard commitments.
+</p>
+<br />
+<h3>The Hash Factor Remains Global</h3>
+<br />
+<p>
+    SHA-256 is not decomposable into small independent local constraints in any straightforward way.
+    Any attempt to treat the hash as a factor node in the same graph as projection sums will lead to an enormous factor
+    with no efficient message computation
+    (unless one introduces additional structure not present in standard hashes).
+    GOBP’s stance is therefore pragmatic: use hashes for verification and audit; do not pretend they are
+    inference-friendly.
+</p>
+<hr/>
+<h2>Conclusion</h2>
+<p>
+    CRSCE compresses by replacing raw bit matrices with a small set of directional projections plus a SHA-256 hash
+    chain, achieving predictable, content-independent compression while preserving losslessness. Decompression is
+    therefore a discrete reconstruction problem aligned with discrete tomography: large binary objects must be
+    recovered from a few projections, a task known to be underdetermined and computationally challenging in general.
+</p>
+<p>
+    The Game of Beliefs Protocol (GOBP) is proposed as a systems-level answer: treat decompression as inference on a
+    factor graph; coordinate many solver processes via standardized belief messages; combine beliefs via principled
+    aggregation; and align incentives for truthful probabilistic reporting with strictly proper scoring rules evaluated
+    after cryptographic verification provides ground truth.
+</p>
+<p>
+    In short: GOBP is not “a new inference algorithm.” It is the protocol scaffolding that makes large-scale,
+    distributed, and auditable CRSCE decompression feasible, using well-established foundations from factor graphs and
+    message passing, discrete reconstruction theory, and incentive-compatible probability elicitation.
+</p>
+<hr/>
+<h2>References</h2>
+<p>
+    Balázs, P. (2008). <em>On the Ambiguity of Reconstructing hv-Convex Binary Matrices with Decomposable
+    Configurations</em>. Acta Cybernetica, 18, 367–377.
+</p>
+<p>
+    Brier, G. W. (1950). <em>Verification of Forecasts Expressed in Terms of Probability</em>. Monthly Weather Review,
+    78(1), 1–3.
+</p>
+<p>
+    Caldwell, S. (2025). <em>Loopy Belief Propagation: Theory and Practical Implementation in Probabilistic Graphical
+    Models</em>. samcaldwell.net.
+</p>
+<p>
+    Gallager, R. G. (1962). <em>Low-Density Parity-Check Codes</em>. IRE Transactions on Information Theory.
+</p>
+<p>
+    Gneiting, T., &amp; Raftery, A. E. (2007). <em>Strictly Proper Scoring Rules, Prediction, and Estimation</em>.
+    Journal of the American Statistical Association, 102(477), 359–378.
+</p>
+<p>
+    Haller, N. M. (1994). <em>The S/KEY One-Time Password System</em>.
+</p>
+<p>
+    Hanson, R. (2002). <em>Logarithmic Market Scoring Rules for Modular Combinatorial Information Aggregation</em>.
+</p>
+<p>
+    Herman, G. T., &amp; Kuba, A. (Eds.). (1999). <em>Discrete Tomography: Foundations, Algorithms, and
+    Applications</em>. Birkhäuser.
+</p>
+<p>
+    Kadu, A., &amp; van Leeuwen, T. (2018). <em>A Convex Formulation for Binary Tomography</em>. arXiv.
+</p>
+<p>
+    Kschischang, F. R., Frey, B. J., &amp; Loeliger, H.-A. (2001). <em>Factor Graphs and the Sum-Product Algorithm</em>.
+    IEEE Transactions on Information Theory, 47(2), 498–519.
+</p>
+<p>
+    MacKay, D. J. C. (1999). <em>Good Error-Correcting Codes Based on Very Sparse Matrices</em>. IEEE Transactions on
+    Information Theory, 45(2), 399–431.
+</p>
+<p>
+    Nash, J. F. (1950). <em>Equilibrium Points in n-Person Games</em>. Proceedings of the National Academy of Sciences,
+    36(1), 48–49.
+</p>
+<p>
+    National Institute of Standards and Technology (NIST). (2015). <em>FIPS 180-4: Secure Hash Standard (SHS)</em>.
+</p>
+<p>
+    Richardson, T. J., &amp; Urbanke, R. (2001). <em>The Capacity of Low-Density Parity-Check Codes Under
+    Message-Passing Decoding</em>. IEEE Transactions on Information Theory.
+</p>
+<p>
+    Rivest, R. L., &amp; Shamir, A. (1996). <em>PayWord and MicroMint: Two Simple Micropayment Schemes</em>.
+</p>
+<p>
+    Weiss, Y. (2000). <em>Correctness of Local Probability Propagation in Graphical Models with Loops</em>. Neural
+    Computation, 12(1), 1–41.
+</p>
+<p>
+    Wainwright, M. J., &amp; Jordan, M. I. (2008). <em>Graphical Models, Exponential Families, and Variational
+    Inference</em>. Foundations and Trends in Machine Learning, 1(1–2), 1–305.
+</p>
+<p>
+    Yedidia, J. S., Freeman, W. T., &amp; Weiss, Y. (2005). <em>Constructing Free-Energy Approximations and Generalized
+    Belief Propagation Algorithms</em>. IEEE Transactions on Information Theory, 51(7), 2282–2312.
+</p>
