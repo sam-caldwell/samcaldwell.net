@@ -1,0 +1,860 @@
+---
+title: "Loopy Belief Propagation: Theory and Practical Implementation in Probabilistic Graphical Models"
+date: 2025-12-15 09:30:00-0600
+description: "A practical, end-to-end treatment of loopy belief propagation (LBP) for approximate inference in probabilistic graphical models, with theory, convergence notes, and Python examples."
+keywords: probabilistic-graphical-models, loopy-belief-propagation, inference, algorithms, mathematics, computer science, graph theory
+math: true
+layout: page
+---
+<hr/>
+<h2 id="abstract" class="center">Abstract</h2>
+<p>
+    Loopy belief propagation (LBP) is a message-passing algorithm used for approximate inference in probabilistic
+    graphical models that contain cycles. While belief propagation (BP) is exact on tree-structured graphs, many
+    real-world models—such as grid-structured Markov random fields used in computer vision and factor graphs used in
+    error-correcting codes—contain loops. LBP applies the same local message updates as tree-based BP, iterating them
+    until convergence (or until a stopping rule is met), and then uses the resulting messages to form approximate
+    marginal distributions (“beliefs”). Despite lacking general convergence guarantees, LBP has become one of the most
+    influential approximate inference methods because it is conceptually simple, often empirically accurate, and
+    computationally scalable when factors are sparse and variables have small discrete state spaces. This paper develops
+    LBP from first principles, presents the sum-product and max-product variants, and explains why fixed points of LBP
+    correspond to stationary points of the Bethe free energy approximation. Practical implementation details are
+    emphasized, including normalization, damping, scheduling, termination criteria, and numerical stability. Simple
+    Python 3 examples are provided to build an end-to-end understanding, including validation against exact inference on
+    small models and demonstrations of convergence and failure modes. (Kschischang, Frey, & Loeliger, 2001; Pearl, 1988;
+    Weiss, 2000; Wainwright & Jordan, 2008; Yedidia, Freeman, & Weiss, 2005)
+</p>
+<hr/>
+<h2 class="center">Introduction</h2>
+<p>
+    Probabilistic graphical models provide a structured way to represent complex joint probability distributions by
+    exploiting conditional independencies encoded in a graph. Two major families are Bayesian networks (directed graphs)
+    and Markov random fields (undirected graphs), both of which can be expressed using factor graphs that separate
+    variables from factors (Koller & Friedman, 2009; Kschischang et al., 2001; Murphy, 2012). Inference tasks in such
+    models often ask for marginal probabilities, such as the posterior probability of a variable given observations, or
+    for the most probable assignment (MAP inference). Exact inference is generally tractable on trees but becomes
+    computationally difficult—often exponential in treewidth—on graphs with cycles (Koller & Friedman, 2009; Murphy,
+    2012).
+</p>
+<p>
+    Belief propagation, also called the sum-product algorithm in factor graphs, is a dynamic-programming-style algorithm
+    that computes exact marginals on tree-structured graphs by passing local “messages” along edges (Kschischang et al.,
+    2001; Pearl, 1988). The extension to cyclic graphs—loopy belief propagation—retains the same local message update
+    rules but iterates them in the presence of feedback loops. This iteration can converge to useful approximations, can
+    converge to incorrect values, can fail to converge, or can oscillate, depending on the model structure and
+    parameters (Weiss, 2000; Wainwright & Jordan, 2008). Understanding LBP therefore requires both a theoretical account
+    of what it is optimizing (or approximating) and a practical account of how it behaves in actual implementations.
+</p>
+<p>
+    This paper explains LBP in a way that supports both conceptual understanding and practical deployment. First, it
+    introduces factorized probability models and exact BP on trees. Second, it defines LBP on graphs with cycles and
+    analyzes its fixed points via the Bethe free energy view. Third, it discusses convergence and accuracy, clarifying
+    what can and cannot be guaranteed. Finally, it provides Python 3 reference implementations for discrete pairwise
+    models, including comparisons to exact enumeration on small graphs.
+</p>
+<hr/>
+<h2 class="center">Background: Factorizations and Inference</h2>
+<br/>
+<h3>Factor graphs and factorized distributions</h3>
+<p>
+    A central benefit of graphical models is that a high-dimensional joint distribution can be written as a product of
+    local terms. In factor graph form, a discrete distribution over variables
+    <span class="math inline">$X_1, …, X_n$</span>
+    can be written as
+    <span class="math display">$$
+        p(x_1,\ldots,x_n)=\frac{1}{Z}\prod_{a\in\mathcal{F}}\psi_a\!\left(x_{\mathrm{scope}(a)}\right),
+    $$</span>
+    where each factor <span class="math inline">$ψ_a (⋅)$</span> is a nonnegative function over a subset (“scope”) of
+    variables, and <span class="math inline"><em>Z</em></span> is the partition function that normalizes the
+    distribution (Kschischang et al., 2001; Wainwright & Jordan, 2008). Many models also include unary factors
+    <span class="math inline">$ϕ_i (x_i)$</span> and pairwise factors <span class="math inline">$ψ_ij (x_i,x_j)$</span>
+    yielding a pairwise Markov random field (MRF):
+    <span class="math display">$$
+        p(x)\propto \prod_i \phi_i(x_i)\,\prod_{(i,j)\in E}\psi_{ij}(x_i,x_j).
+    $$</span>
+    Unary factors often encode evidence or local preferences (likelihood terms), while pairwise factors encode couplings
+    such as “neighboring pixels tend to take the same label.” The inference problem typically concerns marginal
+    distributions <span class="math inline">$p(x_i)$</span> or conditionals <span class="math inline">
+    $p(x_i∣"evidence")$</span>, which require summing over many joint assignments. Such summation is often intractable
+    on loopy graphs for large <span class="math inline">$n$</span>(Koller & Friedman, 2009; Murphy, 2012).
+</p>
+<br/>
+<h3>Inference goals: marginals and MAP</h3>
+<p>
+    Two common inference targets are:
+</p>
+<ol>
+    <li>Marginals (sum-product): compute <span class="math inline">$p(x_i)$</span> for each variable <em>i</em>
+        (or pairwise marginals;<span class="math inline">$p(x_i,x_j)$</span>).
+    </li>
+    <li>MAP assignment (max-product / min-sum): compute<span class="math inline">$x^⋆=arg⁡〖max⁡〗_x p(x).$</span></li>
+</ol>
+<p>
+    LBP has variants for both tasks. The sum-product version approximates marginals; the max-product (or min-sum in
+    log domain) version approximates MAP (Pearl, 1988; Wainwright & Jordan, 2008).
+</p>
+<hr/>
+<h2 class="center">Belief Propagation on Trees: Exactness and Intuition</h2>
+<br/>
+<h3>Message passing as dynamic programming</h3>
+<p>
+    On a tree, removing an edge disconnects the graph into two independent subtrees conditioned on the boundary
+    variables. BP exploits this by summarizing the influence of one subtree on a boundary variable via a message. For a
+    pairwise MRF, the canonical sum-product message from variable <em>i</em> to variable <em>j</em> is
+    <span class="math display">$$
+        m_{i\to j}(x_j)\propto \sum_{x_i}\phi_i(x_i)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(i)\setminus\{j\}} m_{k\to i}(x_i).
+    $$</span>
+    where <em>N(i)</em> denotes neighbors of <em>i</em>. Once messages have been computed consistently, the belief
+    (approximate marginal) at node <em>i</em> is
+    <span class="math display">$$
+        m_{i\to j}(x_j)\propto \sum_{x_i}\phi_i(x_i)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(i)\setminus\{j\}} m_{k\to i}(x_i).
+    $$</span>
+    where <em>N(i)</em> denotes neighbors of <em>i</em>. Once messages have been computed consistently, the belief
+    (approximate marginal) at node <em>i</em> is
+    <span class="math display">$$
+        b_i(x_i)\propto \phi_i(x_i)\prod_{k\in N(i)} m_{k\to i}(x_i).
+    $$</span>
+</p>
+<p>
+    On a tree, there exists an acyclic schedule that computes all messages exactly in a finite number of passes, and
+    these beliefs equal the true marginals <span class="math inline">$p(x_i)$</span>(Kschischang et al., 2001; Pearl,
+    1988). This exactness is one of the key conceptual anchors: BP is not inherently “approximate”; it becomes
+    approximate only when applied to loopy graphs without modification.
+</p>
+<br/>
+<h3>Why are trees special?</h3>
+<p>
+    The correctness on trees follows from conditional independence and the fact that each message represents exact
+    marginalization over a disjoint subtree. In a tree, the product<span class="math display">
+    $\prod_{k\in N(i)\setminus\{j\}} m_{k\to i}(x_i)$</span> collects information from subtrees that do not overlap. In
+    a loopy graph, however, information can return to its origin through cycles, and messages can become correlated in
+    ways the update rule does not explicitly account for. LBP nonetheless uses the same update equations, treating
+    incoming messages as if they were independent contributions (Weiss, 2000; Wainwright & Jordan, 2008).
+</p>
+<hr/>
+<h2 class="center">Loopy Belief Propagation: Definition and Variants</h2>
+<br/>
+<h3>What makes it “loopy”</h3>
+<p>
+    Loopy belief propagation is simply the application of the BP message update equations to graphs with cycles,
+    iterating updates until a fixed point or stopping criterion is reached. Operationally:
+</p>
+<ol>
+    <li>
+        Initialize all messages <span class="math inline">$m_(i→j)$</span> (often to uniform distributions).
+    </li>
+    <li>
+        Repeatedly update messages using the BP formula (in parallel or sequentially).
+    </li>
+    <li>
+        When messages stabilize (or a maximum number of iterations is reached), compute beliefs
+        <span class="math inline">$b_i$</span> from the final messages.
+    </li>
+</ol>
+<p>
+    This process can be seen as a nonlinear dynamical system in the space of messages. Fixed points correspond to
+    message sets that remain unchanged by updates (Weiss, 2000; Yedidia et al., 2005).
+</p>
+<br/>
+<h3>Sum-Product vs. Max-Product</h3>
+<ul>
+    <li>Sum-product LBP estimates marginal distributions and is commonly used when uncertainty matters (e.g., posterior
+        marginals in decoding or vision).
+    </li>
+    <li>Max-product LBP replaces sums with maxima to approximate MAP assignments. For pairwise models, the message
+        update becomes:
+        <span class="math display">$$
+            m_{i\to j}(x_j)\propto \max_{x_i}\,\phi_i(x_i)\,\psi_{ij}(x_i,x_j)\prod_{k\in N(i)\setminus\{j\}} m_{k\to i}(x_i).
+        $$</span>
+    </li>
+</ul>
+<p>
+    In practice, max-product is often implemented in the log domain as a min-sum, which turns products into sums and
+    maxima
+    into minima (Wainwright & Jordan, 2008). Both variants inherit the same core challenge on loopy graphs: convergence
+    and correctness are not guaranteed in general.
+</p>
+<hr/>
+<h2 class="center">Theoretical Foundations: Fixed Points and the Bethe Free Energy</h2>
+<p>
+    A central theoretical contribution to the understanding of LBP is the link between BP fixed points and variational
+    inference through the Bethe approximation. In variational inference, one approximates the true distribution
+    <span class="math display">$p(x)$</span> with a simpler distribution <span class="math display">$q(x)$</span> by
+    minimizing a divergence such as KL divergence or by minimizing a variational free energy functional (Wainwright &
+    Jordan, 2008). For graphs with cycles, the Bethe approximation constructs an approximate objective using local
+    “beliefs” <span class="math display">$b_i (x_i)$</span> and <span class="math display">$b_ij (x_i,x_j)$</span>
+    constrained to be locally consistent (i.e., pairwise beliefs marginalize to node beliefs).
+</p>
+<p>
+    Yedidia, Freeman, and Weiss showed that fixed points of (loopy) BP correspond to stationary points of the Bethe free
+    energy under these local consistency constraints (Yedidia et al., 2005). This is a crucial explanatory result: LBP
+    is not merely a heuristic that happens to work; it is tied to an approximate variational principle. However, the
+    Bethe free energy can be non-convex on loopy graphs, meaning multiple stationary points may exist, and iterative
+    message updates may converge to different solutions depending on initialization and schedule, or may fail to
+    converge (Wainwright & Jordan, 2008; Yedidia et al., 2005).
+</p>
+<p>
+    This variational view supports two practical insights:
+</p>
+<ol>
+    <li>
+        <b>Why LBP can be accurate:</b> In many sparse graphs with relatively weak dependencies, the Bethe
+        approximation can be close to the true free energy, yielding good marginals.
+    </li>
+    <li>
+        <b>Why LBP can misbehave:</b> Non-convexity and feedback through loops can create oscillations or convergence
+        to poor local minima.
+    </li>
+</ol>
+<hr/>
+<h2 class="center">Capabilities and Practical Value of LBP</h2>
+<br/>
+<h3>Scalability and locality</h3>
+<p>
+    LBP is attractive because each message update is local: it involves only a node, its neighbors, and factors on
+    incident edges. For a pairwise discrete MRF with <em>S</em>-states per variable, each directed edge update costs
+    <span class="math inline">$O(S^2),$</span> and an iteration over all edges costs <span class="math inline">$
+    O(∣E∣S^2).$</span> Memory cost is <span class="math inline">$O(∣E∣S)$</span> for storing directed messages.
+    This locality allows LBP to scale to large sparse graphs when <em>S</em> is small, even when exact inference is
+    impossible (Kschischang et al., 2001; Murphy, 2012).
+</p>
+<br/>
+<h3>Empirical success</h3>
+<p>
+    LBP is historically important in coding theory and has been widely used in error-correcting codes expressed as
+    sparse factor graphs, such as LDPC codes, where message passing is foundational (Kschischang et al., 2001). It has
+    also been central in early probabilistic approaches to vision, stereo, segmentation, and image denoising, where grid
+    graphs and pairwise smoothness constraints naturally create loops (Wainwright & Jordan, 2008). The empirical success
+    does not eliminate the need for caution; it motivates understanding the conditions under which the algorithm is
+    reliable and the engineering techniques that improve robustness.
+</p>
+<hr/>
+<h2 class="center">Limitations and Failure Modes</h2>
+<br/>
+<p>LBP has several well-known limitations.</p>
+<br/>
+<h3>Lack of general convergence guarantees</h3>
+<p>
+    On loopy graphs, LBP may:
+</p>
+<ul>
+    <li>converge to a fixed point,</li>
+    <li>converge slowly,</li>
+    <li>oscillate indefinitely, or</li>
+    <li>diverge numerically (Weiss, 2000; Wainwright & Jordan, 2008).</li>
+</ul>
+<p>
+    Convergence depends on graph topology, potential strength, and scheduling. Strong couplings in short cycles commonly
+    increase the risk of oscillation.
+</p>
+<h3>Approximation error and bias</h3>
+<p>
+    Even when LBP converges, beliefs need not equal true marginals. Approximation error can be small or large, and it
+    can be difficult to predict without additional analysis. In some applications, approximate marginals are acceptable;
+    in others, systematic bias can be harmful.
+</p>
+<h3>Multiple fixed points and initialization sensitivity</h3>
+<p>
+    Because the Bethe free energy can be non-convex, multiple stationary points can exist. Different initial message
+    values or update schedules can lead to different converged beliefs, which complicates reproducibility and
+    interpretation (Yedidia et al., 2005; Wainwright & Jordan, 2008).
+</p>
+<h3>Practical issues: normalization and underflow</h3>
+<p>
+    Messages involve products of many small positive numbers. Without normalization or log-domain computation, underflow
+    can occur. Most practical implementations normalize each message to sum to one (sum-product) or subtract a constant
+    offset (max-product / log domain), which preserves relative values while improving numerical stability (Murphy,
+    2012).
+</p>
+<hr/>
+<h2 class="center">Practical Implementation Guidance</h2>
+<br/>
+<p>
+    A practical LBP implementation typically makes several design choices.
+</p>
+<h3>Graph representation</h3>
+<p>
+    For pedagogical clarity, a pairwise MRF can be represented by:
+</p>
+<ul>
+    <li>unary potentials <span class="math inline">$ϕ_i$</span> stored as arrays of length <span class="math inline">
+        $S_i$</span>,
+    </li>
+    <li>pairwise potentials <span class="math inline">$ψ_ij$</span> stored as matrices of shape <span>$S_i×S_j$</span>,
+    </li>
+    <li>adjacency lists for neighbors.</li>
+</ul>
+<p>
+    Factor graphs generalize this to higher-order factors, but pairwise models already illustrate most LBP behavior.
+</p>
+<h3>Message Initialization</h3>
+<p>
+    Common initialization choices include:
+</p>
+<ul>
+    <li>uniform messages,</li>
+    <li>messages derived from unary potentials, or</li>
+    <li>small random perturbations to break symmetry.</li>
+</ul>
+<p>
+    Uniform initialization is simplest and often adequate.
+</p>
+<h3>Scheduling</h3>
+<p>
+    Two common schedules are:
+</p>
+<ul>
+    <li>Synchronous (parallel): compute all new messages from old messages, then replace all at once.</li>
+    <li>Asynchronous (sequential): update messages one by one and immediately use updated values.</li>
+</ul>
+<p>
+    Asynchronous schedules often converge more reliably, though behavior can be model-dependent (Weiss, 2000).
+</p>
+<h3>Damping</h3>
+<p>
+    Damping is a widely used stabilization technique:
+    <span class="math display">$$
+        m^{(t+1)} \leftarrow (1-\alpha)\,\hat{m}^{(t+1)} + \alpha\,m^{(t)}.
+    $$</span>
+    where <span class="math inline">$$m ̂^(tⓜ+1)$$</span> is the undamped update, <span
+        class="math inline">$m^((t))$</span> is the previous message, and <span class="math inline">$ ├ α∈[0,1)$</span>
+    is the damping factor. Damping can reduce oscillations but may slow convergence (Murphy, 2012;
+    Wainwright & Jordan, 2008).
+</p>
+<h3>Stopping criteria</h3>
+<p>
+    Stopping rules include:
+</p>
+<ul>
+    <li>maximum absolute (or <span class="math inline">$L_1$</span>) change across messages below a tolerance,</li>
+    <li>maximum iterations reached, and</li>
+    <li>relative change in beliefs below tolerance.</li>
+</ul>
+<p>
+    Because convergence is not guaranteed, a maximum-iteration cap is essential.
+</p>
+<hr/>
+<h2 class="center">Python 3 Examples: From Trees to Loops</h2>
+<br/>
+<p>
+    The following examples implement sum-product BP for discrete pairwise models. They intentionally avoid external
+    dependencies to keep them easy to run and inspect. For small graphs, exact marginals are computed by brute-force
+    enumeration for validation.
+</p>
+<h3>Example 1. Core utilities: normalization and exact marginals by enumeration</h3>
+<pre>
+from __future__ import annotations
+
+import itertools
+from typing import Dict, List, Tuple
+
+
+def normalize(dist: List[float], eps: float = 1e-12) -> List[float]:
+    """
+    Normalize a nonnegative vector into a probability distribution.
+    Args:
+        dist: A list of nonnegative values.
+        eps: Small value to avoid division by zero in degenerate cases.
+    Returns:
+        A new list whose entries sum to 1.0 (approximately).
+    """
+    s = sum(dist)
+    if s < eps:
+        # Degenerate: fall back to uniform rather than crashing.
+        n = len(dist)
+        return [1.0 / n for _ in range(n)]
+    return [v / s for v in dist]
+
+
+def exact_marginals_pairwise_mrf(
+    unary: Dict[int, List[float]],
+    pairwise: Dict[Tuple[int, int], List[List[float]]],
+    neighbors: Dict[int, List[int]],
+) -> Dict[int, List[float]]:
+    """
+    Compute exact node marginals for a small discrete pairwise MRF by enumeration.
+
+    The unnormalized joint is:
+        P(x) ∝ ∏_i unary[i][x_i] * ∏_(i,j) pairwise[(i,j)][x_i][x_j]
+
+    Args:
+        unary: Maps node i -> list of length S_i with unary potentials.
+        pairwise: Maps undirected edge (i,j) with i&lt;j -> matrix S_i x S_j.
+        neighbors: Maps node i -> list of neighbor indices.
+
+    Returns:
+        Dict mapping i -> exact marginal distribution over x_i.
+    """
+    nodes = sorted(unary.keys())
+    cardinalities = {i: len(unary[i]) for i in nodes}
+
+    # Enumerate all assignments.
+    all_assignments = itertools.product(*(range(cardinalities[i]) for i in nodes))
+
+    # Accumulate unnormalized marginals.
+    marginals = {i: [0.0 for _ in range(cardinalities[i])] for i in nodes}
+    Z = 0.0
+
+    for assignment in all_assignments:
+        x = dict(zip(nodes, assignment))
+
+        # Compute unnormalized probability.
+        p = 1.0
+        for i in nodes:
+            p *= unary[i][x[i]]
+
+        for (i, j), psi in pairwise.items():
+            p *= psi[x[i]][x[j]]
+
+        Z += p
+        for i in nodes:
+            marginals[i][x[i]] += p
+
+    # Normalize marginals.
+    for i in nodes:
+        marginals[i] = normalize(marginals[i])
+
+    return marginals
+</pre>
+<p>
+    Discussion. Enumeration is exponential in the number of nodes and is included only for sanity checks on tiny graphs.
+    This supports a central pedagogical point: BP is not magic; it is a computational shortcut that exploits structure.
+    When the structure is a tree, the shortcut is exact; when the structure contains loops, it becomes approximate
+    (Koller & Friedman, 2009; Murphy, 2012).
+</p>
+<br/>
+<h3>Example 2. Sum-product belief propagation for pairwise MRFs (works for trees and loopy graphs)</h3>
+<pre>
+from __future__ import annotations
+from typing import Dict, List, Tuple
+
+def loopy_belief_propagation_pairwise(
+    unary: Dict[int, List[float]],
+    pairwise: Dict[Tuple[int, int], List[List[float]]],
+    neighbors: Dict[int, List[int]],
+    max_iters: int = 100,
+    tol: float = 1e-9,
+    damping: float = 0.0,
+    synchronous: bool = True,
+) -> Tuple[Dict[int, List[float]], int, float]:
+    """
+    Run sum-product (loopy) belief propagation on a discrete pairwise MRF.
+
+    Args:
+        unary: Maps node i -> unary potential list length S_i.
+        pairwise: Maps undirected edge (i,j) with i&lt;j -> matrix S_i x S_j.
+        neighbors: Maps node i -> list of neighbor indices.
+        max_iters: Maximum iterations of message updates.
+        tol: Convergence tolerance on maximum absolute message change.
+        damping: Damping factor alpha in [0,1). 0 = no damping.
+        synchronous: If True, update all messages in parallel per iteration.
+                    If False, update messages sequentially (Gauss-Seidel style).
+
+    Returns:
+        (beliefs, iters_used, final_max_delta)
+        beliefs: Dict i -> approximate marginal distribution over x_i.
+    """
+    nodes = sorted(unary.keys())
+    card = {i: len(unary[i]) for i in nodes}
+
+    # Helper to fetch the pairwise potential matrix in the correct orientation.
+    def psi(i: int, j: int) -> List[List[float]]:
+        """
+        Return psi_{ij} as a matrix of shape S_i x S_j.
+        """
+        if i < j:
+            return pairwise[(i, j)]
+        # If stored as (j,i), transpose orientation.
+        mat = pairwise[(j, i)]
+        # mat is S_j x S_i; transpose to S_i x S_j.
+        return [list(row) for row in zip(*mat)]
+
+    # Initialize directed messages m[(i,j)] as uniform over states of j.
+    messages: Dict[Tuple[int, int], List[float]] = {}
+    for i in nodes:
+        for j in neighbors[i]:
+            messages[(i, j)] = [1.0 / card[j] for _ in range(card[j])]
+
+    def update_message(i: int, j: int, old_messages: Dict[Tuple[int, int], List[float]]) -> List[float]:
+        """
+        Compute the updated message m_{i->j}(x_j) using current incoming messages.
+        """
+        Si, Sj = card[i], card[j]
+        psi_ij = psi(i, j)  # shape Si x Sj
+
+        # Precompute incoming product for each x_i:
+        # prod_in[x_i] = unary_i[x_i] * ∏_{k in N(i)\{j}} m_{k->i}(x_i)
+        prod_in = [unary[i][xi] for xi in range(Si)]
+        for k in neighbors[i]:
+            if k == j:
+                continue
+            incoming = old_messages[(k, i)]  # length Si
+            for xi in range(Si):
+                prod_in[xi] *= incoming[xi]
+
+        # Now compute message over x_j by summing over x_i.
+        new_msg = [0.0 for _ in range(Sj)]
+        for xj in range(Sj):
+            s = 0.0
+            for xi in range(Si):
+                s += prod_in[xi] * psi_ij[xi][xj]
+            new_msg[xj] = s
+
+        new_msg = normalize(new_msg)
+
+        # Optional damping.
+        if damping > 0.0:
+            old = old_messages[(i, j)]
+            new_msg = [(1.0 - damping) * new_msg[xj] + damping * old[xj] for xj in range(Sj)]
+            new_msg = normalize(new_msg)
+
+        return new_msg
+
+    max_delta = float("inf")
+    it_used = 0
+
+    for t in range(max_iters):
+        it_used = t + 1
+        max_delta = 0.0
+
+        if synchronous:
+            old = dict(messages)
+            new_messages = dict(messages)
+            for i in nodes:
+                for j in neighbors[i]:
+                    new_msg = update_message(i, j, old)
+                    # Track maximum absolute change.
+                    delta = max(abs(new_msg[s] - old[(i, j)][s]) for s in range(card[j]))
+                    max_delta = max(max_delta, delta)
+                    new_messages[(i, j)] = new_msg
+            messages = new_messages
+        else:
+            # Sequential updates: reuse updated values immediately.
+            for i in nodes:
+                for j in neighbors[i]:
+                    old_msg = messages[(i, j)]
+                    new_msg = update_message(i, j, messages)
+                    delta = max(abs(new_msg[s] - old_msg[s]) for s in range(card[j]))
+                    max_delta = max(max_delta, delta)
+                    messages[(i, j)] = new_msg
+
+        if max_delta < tol:
+            break
+
+    # Compute node beliefs b_i(x_i) ∝ unary_i(x_i) * ∏_{k in N(i)} m_{k->i}(x_i)
+    beliefs: Dict[int, List[float]] = {}
+    for i in nodes:
+        b = [unary[i][xi] for xi in range(card[i])]
+        for k in neighbors[i]:
+            incoming = messages[(k, i)]
+            for xi in range(card[i]):
+                b[xi] *= incoming[xi]
+        beliefs[i] = normalize(b)
+
+    return beliefs, it_used, max_delta
+</pre>
+<p>
+    Discussion. The implementation makes the algorithm concrete and reveals its main engineering concerns:
+    normalization, handling matrix orientation, iteration control, and damping. Importantly, no part of the code “knows”
+    whether the graph has loops; the same update rule is applied universally. This is both the strength and the risk of
+    LBP: the algorithm remains simple and local, but the correctness guarantees disappear when loops exist (Weiss, 2000;
+    Wainwright & Jordan, 2008).
+</p>
+<h3>Example 3: A tree-structured chain (BP is exact)</h3>
+<p>
+    Consider a 4-node chain 0" ⁣"-" ⁣" 1" ⁣"-" ⁣" 2" ⁣"-" ⁣" 3with binary variables. Pairwise
+    potentials encourage neighboring variables to agree, and unary potentials encode weak preferences.
+</p>
+<pre>
+def build_chain_example() -> Tuple[Dict[int, List[float]], Dict[Tuple[int, int], List[List[float]]], Dict[int, List[int]]]:
+    """
+    Build a small 4-node chain with binary states.
+
+    Returns:
+        (unary, pairwise, neighbors)
+    """
+    # Binary states: 0 or 1
+    unary = {
+        0: [0.9, 0.1],  # node 0 prefers state 0
+        1: [0.5, 0.5],  # node 1 neutral
+        2: [0.5, 0.5],  # node 2 neutral
+        3: [0.2, 0.8],  # node 3 prefers state 1
+    }
+
+    # "Attractive" coupling: prefers equal states.
+    # psi[xi][xj] is higher when xi == xj.
+    psi_equal = [
+        [2.0, 0.5],
+        [0.5, 2.0],
+    ]
+
+    pairwise = {
+        (0, 1): psi_equal,
+        (1, 2): psi_equal,
+        (2, 3): psi_equal,
+    }
+
+    neighbors = {
+        0: [1],
+        1: [0, 2],
+        2: [1, 3],
+        3: [2],
+    }
+
+    return unary, pairwise, neighbors
+
+
+def run_chain_demo() -> None:
+    """
+    Run BP on a chain and compare with exact marginals.
+    """
+    unary, pairwise, neighbors = build_chain_example()
+
+    bp_beliefs, iters, delta = loopy_belief_propagation_pairwise(
+        unary, pairwise, neighbors, max_iters=50, tol=1e-12, damping=0.0, synchronous=True
+    )
+
+    exact = exact_marginals_pairwise_mrf(unary, pairwise, neighbors)
+
+    print(f"BP converged in {iters} iterations, final max message delta={delta:.3e}\n")
+    for i in sorted(unary.keys()):
+        print(f"Node {i} BP belief   : {bp_beliefs[i]}")
+        print(f"Node {i} exact marginal: {exact[i]}\n")
+
+
+if __name__ == "__main__":
+    run_chain_demo()
+</pre>
+<p>
+    <b>What should be observed.</b> On a tree, messages can be scheduled to converge quickly, and the computed beliefs
+    should match the exact marginals (up to floating-point rounding). This validates both the code and the theory that
+    BP is exact on trees (Kschischang et al., 2001; Pearl, 1988).
+</p>
+<h3>Example 4: A triangle (3-cycle) where LBP is approximate</h3>
+<p>
+    Now consider 3-node cycle <span class="math inline">$0&rarr;1&rarr;2&rarr;0$</span>. The same
+    couplings and unary preferences create feedback. Exact marginals can still be computed by enumeration because the
+    graph is tiny, enabling direct evaluation of LBP’s approximation error.
+</p>
+<pre>
+def build_triangle_example(strength: float = 2.5) -> Tuple[Dict[int, List[float]], Dict[Tuple[int, int], List[List[float]]], Dict[int, List[int]]]:
+    """
+    Build a 3-node cycle (triangle) with binary states.
+
+    Args:
+        strength: Coupling strength. Larger values encourage neighbors to be equal more strongly.
+
+    Returns:
+        (unary, pairwise, neighbors)
+    """
+    unary = {
+        0: [0.9, 0.1],
+        1: [0.5, 0.5],
+        2: [0.2, 0.8],
+    }
+
+    # Attractive coupling with adjustable strength.
+    # Off-diagonal is 1.0, diagonal is 'strength'.
+    psi = [
+        [strength, 1.0],
+        [1.0, strength],
+    ]
+
+    pairwise = {
+        (0, 1): psi,
+        (1, 2): psi,
+        (0, 2): psi,  # closes the loop
+    }
+
+    neighbors = {
+        0: [1, 2],
+        1: [0, 2],
+        2: [0, 1],
+    }
+
+    return unary, pairwise, neighbors
+
+
+def run_triangle_demo() -> None:
+    """
+    Run LBP on a triangle and compare with exact marginals.
+    """
+    unary, pairwise, neighbors = build_triangle_example(strength=3.0)
+
+    lbp_beliefs, iters, delta = loopy_belief_propagation_pairwise(
+        unary, pairwise, neighbors, max_iters=200, tol=1e-10, damping=0.1, synchronous=True
+    )
+
+    exact = exact_marginals_pairwise_mrf(unary, pairwise, neighbors)
+
+    print(f"LBP ran for {iters} iterations, final max message delta={delta:.3e}\n")
+    for i in sorted(unary.keys()):
+        print(f"Node {i} LBP belief    : {lbp_beliefs[i]}")
+        print(f"Node {i} exact marginal: {exact[i]}")
+        # L1 error is a simple scalar summary for binary.
+        l1 = sum(abs(lbp_beliefs[i][s] - exact[i][s]) for s in range(2))
+        print(f"Node {i} L1 error      : {l1:.6f}\n")
+
+
+if __name__ == "__main__":
+    run_triangle_demo()
+</pre>
+<p>
+    <b>Interpretation</b>. If the algorithm converges, the beliefs will often be close to the exact marginals for modest
+    coupling strengths. As coupling becomes stronger, the approximation error may increase, and convergence may become
+    more difficult without damping. This aligns with the conceptual expectation that short, strong loops can amplify
+    feedback and destabilize message updates (Weiss, 2000; Wainwright & Jordan, 2008).
+</p>
+<h3>Example 5: Demonstrating non-convergence and the role of damping</h3>
+<p>
+    A common educational point is that LBP is not guaranteed to converge. The following demonstrates a setting where
+    oscillations are more likely: strong couplings, synchronous updates, and little or no damping.
+</p>
+<pre>
+    def run_triangle_instability_demo() -> None:
+    """
+    Show that strong couplings can make LBP oscillate or converge slowly,
+    and that damping can help stabilize it.
+    """
+    unary, pairwise, neighbors = build_triangle_example(strength=10.0)
+
+    print("=== No damping (may oscillate) ===")
+    beliefs0, it0, d0 = loopy_belief_propagation_pairwise(
+        unary, pairwise, neighbors, max_iters=50, tol=1e-12, damping=0.0, synchronous=True
+    )
+    print(f"iters={it0}, final max delta={d0:.3e}, beliefs={beliefs0}\n")
+
+    print("=== With damping (often stabilizes) ===")
+    beliefs1, it1, d1 = loopy_belief_propagation_pairwise(
+        unary, pairwise, neighbors, max_iters=200, tol=1e-10, damping=0.3, synchronous=True
+    )
+    print(f"iters={it1}, final max delta={d1:.3e}, beliefs={beliefs1}\n")
+
+
+if __name__ == "__main__":
+    run_triangle_instability_demo()
+</pre>
+<p>
+    <b>Interpretation.</b> Even when damping helps, it does not transform LBP into an algorithm with general guarantees.
+    Instead, damping is a pragmatic intervention that can reduce oscillation amplitude and encourage convergence to a
+    fixed point of the damped dynamics. This emphasizes an important limitation: LBP is best understood as an
+    approximate algorithm whose reliability depends on both model properties and implementation choices (Murphy, 2012;
+    Weiss, 2000; Yedidia et al., 2005).
+</p>
+<hr/>
+<h2 class="center">How LBP Works Conceptually: A Step-by-Step Mental Model</h2>
+<br/>
+<p>
+    LBP can be understood as repeatedly answering the following local question for each directed edge
+    <span class="math inline">$i→j:$</span>
+</p>
+<blockquote>
+    “Given everything node <em>i</em> currently believes from its other
+    neighbors, how much support does it provide for each possible state of node <em>j</em>?”
+</blockquote>
+<p>
+    The message
+    <span class="math inline">$m_(i→j) (x_j)$</span> is that support as a function of <span class="math inline">$
+    x_j.$</span>
+</p>
+<ol>
+    <li>Collect incoming influences at node <em>i</em>: For each state <span class="math inline">$x_i$</span>,
+        multiply unary evidence <span class="math inline">$ϕ_i (x_i)$</span> by all incoming messages from neighbors
+        other than <em>j</em>.
+    </li>
+    <li>Send influence through the edge factor: Use the pairwise potential <span class="math inline">$ψ_ij (x_i,x_j)
+        $</span>to map support from <span class="math inline">$x_i$</span> to <span class="math inline">$x_j$</span>.
+    </li>
+    <li>Marginalize out <span class="math inline">$x_i$</span>: Sum over <span class="math inline">$x_i(sum-product)$
+        </span>to produce a distribution over <span class="math inline">$x_j$</span>.
+    </li>
+    <li>Normalize and optionally damp: Keep messages numerically stable and reduce oscillations.</li>
+    <li>Iterate until stable: The “loopy” part is that messages depend on each other in cycles, so iteration is
+        required.
+    </li>
+</ol>
+<p>
+    This mechanism is exact when subgraphs represented by messages are disjoint (trees). It becomes approximate when
+    cycles cause the same evidence to be implicitly “counted” multiple times as it circulates through loops (Weiss,
+    2000; Wainwright & Jordan, 2008).
+</p>
+<hr/>
+<h2 class="center">How LBP Works Conceptually: A Step-by-Step Mental Model</h2>
+<br/>
+<p>
+    LBP can be understood as repeatedly answering the following local question for each directed edge
+    <span class="math inline">$i→j$</span>: “Given everything node <em>i</em> currently believes from its other
+    neighbors, how much support does it provide for each possible state of node <em>j</em>?” The message
+    <span class="math inline">$m_(i→j) (x_j)$</span> is that support as a function of <span class="math inline">$x_j$
+    </span>.
+<ol>
+    <li>Collect incoming influences at node <em>i</em>: For each state <span class="math inline">$x_i$</span>, multiply
+        unary evidence <span class="math inline">$ϕ_i (x_i)$</span> by all incoming messages from neighbors other than
+        <em>j</em>.
+    </li>
+    <li>Send influence through the edge factor: Use the pairwise potential <span class="math inline">$ψ_ij (x_i,x_j)$
+    </span>to map support from <span class="math inline">$x_i$</span> to <span class="math inline">$x_j$</span>.
+    </li>
+    <li>Marginalize out <span class="math inline">$x_i$</span>: Sum over <span class="math inline">$x_i(sum-product)$
+    </span> to produce a distribution over <span class="math inline">$x_j$</span>.
+    </li>
+    <li>Normalize and optionally damp: Keep messages numerically stable and reduce oscillations.</li>
+    <li>Iterate until stable: The “loopy” part is that messages depend on each other in cycles, so iteration is
+        required.
+    </li>
+</ol>
+<p>
+    This mechanism is exact when subgraphs represented by messages are disjoint (trees). It becomes approximate when
+    cycles cause the same evidence to be implicitly “counted” multiple times as it circulates through loops (Weiss,
+    2000; Wainwright & Jordan, 2008).
+</p>
+<hr/>
+<h2 class="center">Capabilities: When LBP is a Good Choice</h2>
+<br/>
+<p>
+    LBP tends to be useful when:
+</p>
+<ul>
+    <li>the graph is sparse (small average degree),</li>
+    <li>factors are local and small (pairwise or low order),</li>
+    <li>variable cardinalities are small (binary or a handful of labels), and</li>
+    <li>approximate marginals are acceptable.</li>
+</ul>
+<p>
+    It is particularly compelling when exact inference is infeasible, but the local structure is rich enough that local
+    message passing captures most dependencies. The factor-graph interpretation makes these conditions explicit: message
+    passing exploits locality of factors to avoid summing over the full joint state space (Kschischang et al., 2001;
+    Murphy, 2012).
+</p>
+<br/>
+<h3>Limitations: When Caution is Required</h3>
+<br/>
+<p>LBP should be treated cautiously when:</p>
+<ul>
+    <li>couplings are very strong in graphs with many short cycles,</li>
+    <li>the model is highly frustrated (competing constraints that cannot all be satisfied),</li>
+    <li>reliable convergence is critical, or</li>
+    <li>marginal accuracy must be certified.</li>
+</ul>
+<p>
+    In such cases, alternative approximate methods (e.g., variational methods with convex objectives, sampling methods,
+    or tightened relaxations) may be preferable. The theoretical link to the Bethe free energy helps explain why:
+    non-convex objectives can have many stationary points, and iterative updates can be sensitive to details (Wainwright
+    & Jordan, 2008; Yedidia et al., 2005).
+</p>
+<hr/>
+<h2 class="center">Conclusion</h2>
+<br/>
+<p>
+    Loopy belief propagation occupies an important position in approximate inference: it is simple, local, and
+    computationally efficient, yet it can produce high-quality approximations in many practical settings. The algorithm
+    is best understood as an extension of exact tree-based BP to graphs with cycles, where fixed points correspond to
+    stationary points of the Bethe free energy approximation. This variational foundation explains both the strengths
+    and weaknesses of LBP: it often works well because the Bethe approximation can be accurate in sparse settings, and
+    it can fail because the objective is not generally convex and message updates can oscillate or converge to
+    suboptimal stationary points. Practical implementations therefore emphasize stabilization techniques such as
+    normalization, damping, and careful scheduling. The provided Python examples demonstrate how to implement LBP from
+    scratch, validate it against exact inference on small problems, and observe its convergence behavior. Ultimately,
+    LBP is most effective when applied with an awareness of its approximate nature and when validated empirically in the
+    target domain (Kschischang et al., 2001; Pearl, 1988; Weiss, 2000; Wainwright & Jordan, 2008; Yedidia et al., 2005).
+</p>

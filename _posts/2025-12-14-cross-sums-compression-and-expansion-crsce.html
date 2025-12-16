@@ -3,7 +3,7 @@ layout: page
 title: Cross-Sums Compression and Expansion (CRSCE)
 date: 2025-12-14 10:17:42-0600
 description: Cross Sums Compression and Expansion (CRSCE)
-tags: [crsce, compression]
+keywords: crsce, compression, computer science, programming, mathematics
 math: true
 ---
 <br />
@@ -13,12 +13,14 @@ math: true
     binary or high-entropy datasets. We present the compression phase of the Cross-Sums Compression and Expansion
     (CRSCE) algorithm, a novel technique grounded in structural analysis of binary matrices. CRSCE bypasses entropy
     coding and dictionary-based schemes by representing input as a 2D matrix and extracting compact summaries via
-    cross-sum metrics. This method achieves a consistent, deterministic compression ratio of 42.97% for fixed
-    512\times512-bit blocks, outperforming standard compressors in uniform and pseudo-random domains. Theoretical
-    bounds are derived, and compression properties are proven under modular arithmetic. Comparative analysis with LZ77,
-    BWT, and arithmetic coding illustrates CRSCE’s scalability and content-independent efficiency. This paper
-    exclusively addresses the compression process, demonstrating how structure-preserving summarization and
-    cryptographic hashing yield high-confidence, verifiable compression guarantees.
+    cross-sum metrics. This method achieves a consistent, deterministic compression ratio of
+    <span class="math inline">42.97%</span> for fixed
+    <span class="math inline">512\times512-bit</span> blocks, outperforming standard compressors in uniform and
+    pseudo-random domains. Theoretical bounds are derived, and compression properties are proven under modular
+    arithmetic. Comparative analysis with LZ77, BWT, and arithmetic coding illustrates CRSCE’s scalability and
+    content-independent efficiency. This paper exclusively addresses the compression process, demonstrating how
+    structure-preserving summarization and cryptographic hashing yield high-confidence, verifiable compression
+    guarantees.
 </p>
 <p>
     <strong>Keywords:</strong> lossless compression, binary data, modular arithmetic, structural summarization,
@@ -204,8 +206,10 @@ math: true
     matrix, LH must be of s rows itself. Further, because LH is composed of
     s-number of SHA-256 hashes, and because the output size of the SHA-256
     algorithm is 256 bits, we can calculate the number of bits in LH as—</p>
-<p><span
-        class="math display"><em>H</em><em>a</em><em>s</em><em>h</em> <em>b</em><em>i</em><em>t</em><em>s</em> = 256 • <em>s</em> = 256 • 512 = 131, 072 <em>b</em><em>i</em><em>t</em><em>s</em></span>
+<p>
+    <span class="math display">
+        <em>Hash bits = 256 • s = 256 • 512 = 131, 072 bits</em>
+    </span>
 </p>
 <h3 id="collisions-in-sha-256">Collisions in SHA-256</h3>
 <p>While SHA-256 remains a secure hash function as of 2025, its finite
