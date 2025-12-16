@@ -21,8 +21,8 @@ layout: page
     correspond to stationary points of the Bethe free energy approximation. Practical implementation details are
     emphasized, including normalization, damping, scheduling, termination criteria, and numerical stability. Simple
     Python 3 examples are provided to build an end-to-end understanding, including validation against exact inference on
-    small models and demonstrations of convergence and failure modes. (Kschischang, Frey, & Loeliger, 2001; Pearl, 1988;
-    Weiss, 2000; Wainwright & Jordan, 2008; Yedidia, Freeman, & Weiss, 2005)
+    small models and demonstrations of convergence and failure modes. (Kschischang et al., 2001; Pearl, 1988; Weiss,
+    2000; Wainwright & Jordan, 2008; Yedidia et al., 2005)
 </p>
 <hr/>
 <h2 class="center">Introduction</h2>
@@ -40,17 +40,17 @@ layout: page
     Belief propagation, also called the sum-product algorithm in factor graphs, is a dynamic-programming-style algorithm
     that computes exact marginals on tree-structured graphs by passing local “messages” along edges (Kschischang et al.,
     2001; Pearl, 1988). The extension to cyclic graphs—loopy belief propagation—retains the same local message update
-    rules but iterates them in the presence of feedback loops. This iteration can converge to useful approximations, can
-    converge to incorrect values, can fail to converge, or can oscillate, depending on the model structure and
-    parameters (Weiss, 2000; Wainwright & Jordan, 2008). Understanding LBP therefore requires both a theoretical account
-    of what it is optimizing (or approximating) and a practical account of how it behaves in actual implementations.
+    rules but iterates them in the presence of feedback loops. This iteration can converge to useful approximations,
+    converge to incorrect values, fail to converge, or oscillate, depending on the model structure and parameters
+    (Weiss, 2000; Wainwright & Jordan, 2008). Understanding LBP therefore requires both a theoretical account of what it
+    is optimizing (or approximating) and a practical account of how it behaves in actual implementations.
 </p>
 <p>
     This paper explains LBP in a way that supports both conceptual understanding and practical deployment. First, it
     introduces factorized probability models and exact BP on trees. Second, it defines LBP on graphs with cycles and
-    analyzes its fixed points via the Bethe free energy view. Third, it discusses convergence and accuracy, clarifying
-    what can and cannot be guaranteed. Finally, it provides Python 3 reference implementations for discrete pairwise
-    models, including comparisons to exact enumeration on small graphs.
+    analyzes its fixed points via the Bethe free energy perspective. Third, it discusses convergence and accuracy,
+    clarifying what can and cannot be guaranteed. Finally, it provides Python 3 reference implementations for discrete
+    pairwise models, including comparisons to exact enumeration on small graphs.
 </p>
 <hr/>
 <h2 class="center">Background: Factorizations and Inference</h2>
@@ -58,23 +58,18 @@ layout: page
 <h3>Factor graphs and factorized distributions</h3>
 <p>
     A central benefit of graphical models is that a high-dimensional joint distribution can be written as a product of
-    local terms. In factor graph form, a discrete distribution over variables
-    <span class="math inline">$X_1, …, X_n$</span>
-    can be written as
-    <span class="math display">$$
+    local terms. In factor graph form, a discrete distribution over variables <span class="math inline">$X_1, …, X_n$
+    </span> can be written as <span class="math display">$$
         p(x_1,\ldots,x_n)=\frac{1}{Z}\prod_{a\in\mathcal{F}}\psi_a\!\left(x_{\mathrm{scope}(a)}\right),
-    $$</span>
-    where each factor <span class="math inline">$ψ_a (⋅)$</span> is a nonnegative function over a subset (“scope”) of
-    variables, and <span class="math inline"><em>Z</em></span> is the partition function that normalizes the
-    distribution (Kschischang et al., 2001; Wainwright & Jordan, 2008). Many models also include unary factors
+    $$</span> where each factor <span class="math inline">$ψ_a (⋅)$</span> is a nonnegative function over a subset
+    (“scope”) of variables, and <span class="math inline">$Z$</span> is the partition function that normalizes
+    the distribution (Kschischang et al., 2001; Wainwright & Jordan, 2008). Many models also include unary factors
     <span class="math inline">$ϕ_i (x_i)$</span> and pairwise factors <span class="math inline">$ψ_ij (x_i,x_j)$</span>
-    yielding a pairwise Markov random field (MRF):
-    <span class="math display">$$
+    yielding a pairwise Markov random field (MRF):<span class="math display">$$
         p(x)\propto \prod_i \phi_i(x_i)\,\prod_{(i,j)\in E}\psi_{ij}(x_i,x_j).
-    $$</span>
-    Unary factors often encode evidence or local preferences (likelihood terms), while pairwise factors encode couplings
-    such as “neighboring pixels tend to take the same label.” The inference problem typically concerns marginal
-    distributions <span class="math inline">$p(x_i)$</span> or conditionals <span class="math inline">
+    $$</span> Unary factors often encode evidence or local preferences (likelihood terms), while pairwise factors
+    encode couplings such as “neighboring pixels tend to take the same label.” The inference problem typically concerns
+    marginal distributions <span class="math inline">$p(x_i)$</span> or conditionals <span class="math inline">
     $p(x_i∣"evidence")$</span>, which require summing over many joint assignments. Such summation is often intractable
     on loopy graphs for large <span class="math inline">$n$</span>(Koller & Friedman, 2009; Murphy, 2012).
 </p>
@@ -84,10 +79,13 @@ layout: page
     Two common inference targets are:
 </p>
 <ol>
-    <li>Marginals (sum-product): compute <span class="math inline">$p(x_i)$</span> for each variable <em>i</em>
+    <li>
+        Marginals (sum-product): compute <span class="math inline">$p(x_i)$</span> for each variable <em>i</em>
         (or pairwise marginals;<span class="math inline">$p(x_i,x_j)$</span>).
     </li>
-    <li>MAP assignment (max-product / min-sum): compute<span class="math inline">$x^⋆=arg⁡〖max⁡〗_x p(x).$</span></li>
+    <li>
+        MAP assignment (max-product / min-sum): compute<span class="math inline">$x^⋆=arg⁡〖max⁡〗_x p(x).$</span>
+    </li>
 </ol>
 <p>
     LBP has variants for both tasks. The sum-product version approximates marginals; the max-product (or min-sum in
@@ -857,4 +855,36 @@ if __name__ == "__main__":
     scratch, validate it against exact inference on small problems, and observe its convergence behavior. Ultimately,
     LBP is most effective when applied with an awareness of its approximate nature and when validated empirically in the
     target domain (Kschischang et al., 2001; Pearl, 1988; Weiss, 2000; Wainwright & Jordan, 2008; Yedidia et al., 2005).
+</p>
+<br/>
+<hr/>
+<h2 class="center">References</h2>
+<br/>
+<p>
+    Koller, D., & Friedman, N. (2009). Probabilistic graphical models: Principles and techniques. MIT Press.
+</p>
+<p>
+    Kschischang, F. R., Frey, B. J., & Loeliger, H.-A. (2001). Factor graphs and the sum-product algorithm. IEEE
+    Transactions on Information Theory, 47(2), 498–519.
+</p>
+<p>
+    Murphy, K. P. (2012). Machine learning: A probabilistic perspective. MIT Press.
+</p>
+<p>
+    Pearl, J. (1988). Probabilistic reasoning in intelligent systems: Networks of plausible inference. Morgan Kaufmann.
+</p>
+<p>
+    Wainwright, M. J., & Jordan, M. I. (2008). Graphical models, exponential families, and variational inference.
+    Foundations and Trends in Machine Learning, 1(1–2), 1–305.
+</p>
+<p>
+    Weiss, Y. (2000). Correctness of local probability propagation in graphical models with loops. Neural Computation,
+    12(1), 1–41.
+</p>
+<p>
+    Yedidia, J. S., Freeman, W. T., & Weiss, Y. (2005). Constructing free-energy approximations and generalized belief
+    propagation algorithms. IEEE Transactions on Information Theory, 51(7), 2282–2312.
+</p>
+
+
 </p>
