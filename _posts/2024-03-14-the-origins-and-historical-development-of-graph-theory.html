@@ -1,0 +1,340 @@
+---
+layout: page
+title: The Origins and Historical Development of Graph Theory
+date: 2024-03-14 08:33:01-0600
+description: This article discusses the origins and historical development of graph theory, an unhealthy addiction I have.
+keywords: mathematics, computer science, graph theory, obsessions
+---
+
+<hr/>
+<h2 class="center">Abstract</h2>
+<br/>
+<p>
+    Graph theory studies structures composed of discrete objects (vertices) connected by relations (edges). Although
+    graphs are now foundational across mathematics, computer science, and the sciences; the field did not begin as an
+    abstract theory. Instead, graph theory emerged from a sequence of concrete problems—route-tracing puzzles,
+    electrical networks, chemical structure, and map coloring—that required a language for describing connectivity
+    independently of geometry. This essay traces the origins of graph theory from early conceptual antecedents in
+    analysis situs through Euler’s solution of the Königsberg bridge problem and the nineteenth-century growth of
+    ideas about trees, circuits, and structural representations. It then examines how the four-color problem and
+    planar embeddings drove the development of a more systematic theory, culminating in early-twentieth-century
+    structural theorems and the first major textbook treatment. By following these intertwined lines of inquiry,
+    the history of graph theory appears not as a linear progression but as a convergence: diverse applications
+    repeatedly forced mathematicians to isolate “connectivity” as an autonomous mathematical notion.
+</p>
+<hr/>
+<h2 class="center">Introduction: Graphs as an Autonomous Language of Connectivity</h2>
+<br/>
+<p>
+    In contemporary mathematics, a graph is typically defined as a set of vertices together with a set of edges
+    indicating which pairs (or, in more general settings, which tuples) of vertices are related. This spare definition
+    is deceptively powerful: it captures networks of roads, communication links, logical dependencies, molecular bonds,
+    and countless other relational systems. Yet the notion that connectivity could be studied independently of metric
+    geometry, algebraic form, or physical mechanism is historically recent. The emergence of graph theory required a
+    conceptual shift—away from regarding lines primarily as geometric objects and toward treating them as carriers of
+    adjacency information. Modern textbooks present this as natural, but historically it was an intellectual
+    achievement: to separate the pattern of connections from any particular representation in space.
+</p>
+<p>
+    A second feature of graph theory’s history is that it formed at the intersection of problems that were not initially
+    “about graphs.” Many of the founding contributions arose from attempts to solve questions that today are categorized
+    as topology, combinatorics, mathematical chemistry, or electrical engineering. As a result, graph theory’s early
+    development is best understood as a gradual consolidation of techniques and concepts—walks and trails, trees and
+    circuits, planar embeddings and duality—rather than as the immediate creation of a standalone discipline. The
+    origins of the field lie in the repeated discovery that apparently different problems share a common structure once
+    they are translated into questions about connectivity.
+</p>
+<hr/>
+<h2 class="center">Antecedents: Analysis Situs and the Search for Non-Metrical Form</h2>
+<br/>
+<p>
+    Before “graph theory” existed as a name or subject, European mathematics contained a persistent current of thought
+    aimed at describing spatial or relational form without reducing it to measurement. Early modern discussions of situs
+    (position or situation) sought to formalize aspects of geometry that depend on arrangement rather than distance. In
+    this context, Leibniz’s writings on analysis situs are often treated as philosophically and mathematically
+    suggestive precursors: he was concerned with relations and order as basic constituents of geometrical reasoning and
+    with the possibility of a general method for such relational structures (De Risi, 2015). Although Leibniz did not
+    develop graph theory in anything like its later technical sense, the intellectual motive that connectivity can be
+    studied abstractly—separate from metric geometry—belongs to this earlier tradition.
+</p>
+<p>
+    The relevance of such antecedents becomes clearer once one notices that many early graph-theoretic problems are
+    “geometric” only in a superficial way. They concern whether a route exists, whether a configuration can be traversed
+    without repetition, or whether a set of constraints can be satisfied—questions governed primarily by adjacency and
+    incidence. The mature viewpoint of graph theory is precisely that these questions can be posed and solved without
+    committing to a particular drawing. The historical path to that viewpoint was not automatic; it depended on turning
+    informal ideas about relational arrangement into explicit combinatorial conditions.
+</p>
+<hr/>
+<h2 class="center">Euler and the Königsberg Bridges: A Foundational Moment</h2>
+<br/>
+<p>
+    The most widely cited “beginning” of graph theory is Leonhard Euler’s analysis of the Königsberg bridge problem. The
+    problem asked whether one could take a walk through the city crossing each of its seven bridges exactly once.
+    Euler’s decisive move was to strip away irrelevant geometric detail and to retain only the essential connectivity
+    structure: landmasses became abstract nodes, and bridges became links connecting them. He thus transformed a
+    question about a city’s geography into a question about degrees of vertices and the existence of a trail using each
+    edge exactly once. In doing so, Euler inaugurated a method that has become characteristic of graph theory: identify
+    the invariant combinatorial structure underlying a concrete situation and solve the resulting abstract problem.
+</p>
+<p>
+    Euler’s work is historically subtle in its dating and reception. The paper is often associated with the year 1736,
+    but archival records indicate that it was presented to the St. Petersburg Academy in 1735 and appeared in print
+    later, in the Academy’s Commentarii (Euler, 1741). This temporal gap matters less than the conceptual novelty: Euler
+    provided a criterion, expressed in terms of vertex degrees, that determines when such a traversal is possible. The
+    condition that all vertices have even degree (for a closed traversal) or exactly two vertices have odd degree (for
+    an open traversal) is not merely a trick for one puzzle; it is the first clear demonstration that a “network” can be
+    analyzed through purely combinatorial invariants.
+</p>
+<p>
+    In retrospect, Euler’s contribution did two things at once. First, it offered a specific theorem about
+    traversability—what later language calls Eulerian trails and circuits. Second, it modeled a new kind of reasoning: a
+    problem about physical routes could be solved by converting it into an abstract connectivity statement and then
+    proving a general criterion. For this reason, Euler’s Königsberg paper is often cited as an early foundational
+    document not only for graph theory but also for topology, since it exemplifies the study of structural properties
+    preserved under deformation and independent of measurement.
+</p>
+<hr/>
+<h2 class="center">Nineteenth-Century Diversification: Circuits, Trees, and Enumeration</h2>
+<br/>
+<p>
+    After Euler, graph-like reasoning reappeared in multiple nineteenth-century contexts, each adding new concepts that
+    later became central to graph theory. One major line emerged from the study of electrical networks. Gustav
+    Kirchhoff’s 1847 work on the linear distribution of galvanic currents introduced techniques that, from a modern
+    perspective, are deeply graph-theoretic. Kirchhoff represented a circuit as a network of branches and junctions and
+    developed equations describing currents and potential differences. In the course of this analysis, the role of what
+    we now call spanning trees becomes visible: Kirchhoff’s methods connect the structure of a network to determinants
+    that encode its connectivity properties (Kirchhoff, 1847). Although nineteenth-century authors did not always employ
+    modern terminology, Kirchhoff’s paper stands as a landmark in the development of graph-based thinking driven by
+    physical applications.
+</p>
+<p>
+    Kirchhoff’s contribution illustrates a recurring theme in the history of graph theory: applications often demanded
+    general structural reasoning before a purely mathematical theory existed. Electrical circuits forced attention onto
+    cycles, cuts, and independent sets of connections—concepts that later became formalized as cycle spaces, cutsets,
+    and bases in matroidal or linear-algebraic treatments of graphs. The demand was practical (solving for currents),
+    but the resulting mathematics pointed toward a general theory in which connectivity constraints can be encoded
+    algebraically. This blending of combinatorial structure with linear algebra became one of the distinctive strengths
+    of later graph theory.
+</p>
+<p>
+    A second major nineteenth-century strand concerns trees and combinatorial enumeration. Arthur Cayley’s 1857 paper on
+    “analytical forms called trees” is now recognized as a foundational step toward systematic tree theory. Cayley
+    studied branching structures as mathematical objects, both for their intrinsic combinatorial interest and for their
+    relevance to chemical combinations. What is crucial historically is not only that Cayley analyzed trees, but that he
+    treated them as abstract structures amenable to general counting methods (Cayley, 1857). This marked a shift from
+    isolated puzzles to a program of classification and enumeration: rather than asking whether a particular route
+    exists, one can ask how many distinct structures of a given type exist.
+</p>
+<p>
+    Cayley’s work also illustrates how chemistry provided a fertile source of graph-like problems. Structural chemistry
+    in the mid-nineteenth century increasingly relied on diagrams expressing which atoms were connected to which, and
+    questions about the number of possible compounds with given valence constraints naturally became counting problems
+    over abstract connectivity patterns. Cayley’s explicit attention to chemical applications helped normalize the idea
+    that connectivity diagrams were legitimate mathematical objects. In this way, chemical structure contributed not
+    only motivating problems but also representational habits that made the later “graph” concept culturally
+    intelligible.
+</p>
+<p>
+    Alongside electrical networks and chemical enumeration, nineteenth-century mathematics also saw the rise of route
+    and circuit problems on polyhedra and other combinatorial surfaces. In the 1850s, mathematicians including Hamilton
+    and Kirkman considered questions about closed tours visiting vertices of polyhedral frameworks, a family of ideas
+    that later coalesced around the modern notion of Hamiltonian cycles. These problems reinforced the idea that
+    traversability properties depend on the incidence structure of a network rather than on its particular embedding.
+    Historically, they also foreshadowed a key tension in graph theory: unlike Eulerian trails, Hamiltonian cycles do
+    not admit a simple degree-based characterization, and their study pushed graph theory toward deeper structural
+    reasoning and, eventually, algorithmic complexity.
+</p>
+<hr/>
+<h2 class="center">Naming the Object: Sylvester and the Emergence of the Term “Graph”</h2>
+<br/>
+<p>
+    The consolidation of these diverse strands required language. A pivotal moment in this regard came with James Joseph
+    Sylvester’s introduction of the term “graph” in the late 1870s. In a short piece published in Nature, Sylvester
+    described analogies between modern chemistry and modern algebra and explicitly connected algebraic invariants to
+    “Kekuléan” chemical diagrams (Sylvester, 1878a). Whatever one makes of the analogy itself, the historical
+    significance is that Sylvester treated connectivity diagrams as a coherent representational class and supplied a
+    name that later became standard.
+</p>
+<p>
+    Sylvester did not stop at a popular note. In the inaugural volume of the American Journal of Mathematics, he
+    developed the “graphical representation” of algebraic invariants through diagrams explicitly modeled on chemical
+    bonding structures (Sylvester, 1878b). This is an important episode because it reveals that, by the late nineteenth
+    century, graph-like objects were circulating in multiple intellectual networks at once: algebraists encountered them
+    as representations of invariants, chemists as representations of molecular structure, and applied scientists as
+    representations of circuits. The word “graph” helped unify these practices by suggesting a general class of
+    mathematical objects characterized by vertices and connections.
+</p>
+<p>
+    From a historiographical standpoint, Sylvester’s naming act also highlights that disciplines can cohere around
+    terminology as much as around theorems. Once “graph” existed as a term, it became easier to recognize family
+    resemblances among previously disparate problems, and easier to imagine a common toolkit for studying them. The
+    late-nineteenth-century period therefore represents not only the accumulation of results but also the emergence of a
+    shared conceptual object—an abstract network—that could be transported from one problem domain to another.
+</p>
+<hr/>
+<h2 class="center">Map Coloring and Planarity: A Central Driver of Early Graph Theory</h2>
+<br/>
+<p>
+    If Euler provided graph theory with an origin story, map coloring provided it with a sustained research agenda. The
+    four-color problem—posed in the mid-nineteenth century and quickly popularized—asked whether four colors suffice to
+    color any planar map so that adjacent regions receive different colors. The problem’s enduring importance was not
+    merely recreational. It forced mathematicians to formalize what “adjacent” means, to relate maps to planar graphs
+    via duality, and to develop methods for reasoning about planar embeddings. In these ways, the map-coloring tradition
+    served as a workshop in which core graph concepts (planarity, dual graphs, cycles, and connectivity) were refined
+    under pressure.
+</p>
+<p>
+    Alfred Kempe’s 1879 paper proposed what was then accepted as a proof of the four-color theorem, introducing
+    techniques—now associated with Kempe chains—that remained influential even after the proof was found defective
+    (Kempe, 1879). Percy Heawood’s 1890 analysis identified the flaw and, in the process, proved the five-color theorem
+    and developed ideas that extended beyond the plane to surfaces of higher genus (Heawood, 1890). These episodes
+    exemplify a paradox in mathematical history: an incorrect proof can nonetheless contribute lasting tools. The
+    map-coloring literature thus shaped graph theory not only through final results but through the methods invented in
+    the attempt to reach them.
+</p>
+<p>
+    Map coloring also encouraged the development of more systematic invariants. In the early twentieth century, George
+    D. Birkhoff introduced what became the chromatic polynomial, a function counting the number of proper colorings of a
+    graph (or map) with a given number of colors (Birkhoff, 1912). The historical importance of this move is that it
+    reframed coloring from a yes/no existence question into a richer enumerative and algebraic object. In doing so, it
+    connected graph theory to polynomial invariants and to broader developments in combinatorial enumeration. This was
+    another step toward the modern identity of graph theory as a discipline in which discrete structures can be studied
+    with sophisticated algebraic tools.
+</p>
+<hr/>
+<h2 class="center">Structural Theorems and the Early Twentieth-Century Consolidation</h2>
+<br/>
+<p>
+    By the 1920s and 1930s, graph theory increasingly took on the character of a systematic subject with its own
+    internal problems and standards of rigor. One hallmark of this consolidation was the appearance of structural
+    characterizations: theorems that identify a graph class by forbidden configurations or decomposition principles. The
+    classic example for planar graphs is Kuratowski’s 1930 theorem, which characterizes planarity in terms of the
+    absence of subdivisions of two specific nonplanar graphs (Kuratowski, 1930). This result did not merely solve a
+    problem; it provided a conceptual template. Rather than reasoning about planarity through ad hoc geometric
+    arguments, one could detect planarity through purely combinatorial substructure conditions.
+</p>
+<p>
+    Closely related developments followed quickly. Hassler Whitney’s work on non-separable and planar graphs exemplifies
+    the growing sophistication of graph-theoretic structure theory and its interplay with notions of connectivity and
+    decomposition (Whitney, 1932). A few years later, Klaus Wagner provided an alternative forbidden-structure
+    characterization formulated in the language of minors, deepening the connection between planarity and containment
+    relations among graphs (Wagner, 1937). Collectively, these works illustrate how, by the 1930s, graph theory had
+    begun to generate results that were both abstract and broadly applicable, no longer tied to a single motivating
+    puzzle.
+</p>
+<p>
+    A second marker of consolidation is the appearance of work explicitly framed as graph theory rather than as an
+    application. Julius Petersen’s 1891 paper on factorization of regular graphs is often treated as a foundational
+    contribution to what would become matching theory and the systematic study of regular graphs (Petersen, 1891). The
+    historical point is not only the specific theorems but the stance: graphs were becoming objects of direct
+    mathematical investigation, with their own internal questions (factorizations, coverings, decompositions) rather
+    than merely serving as models for external phenomena.
+</p>
+<hr/>
+<h2 class="center">Institutionalization: König’s Textbook and the Emergence of a Discipline</h2>
+<br/>
+<p>
+    The symbolic “end” of graph theory’s origin period is often placed at the publication of Dénes König’s 1936 book,
+    widely regarded as the first textbook devoted to graph theory as a coherent subject (König, 1936). The significance
+    of a textbook is institutional as much as intellectual: it indicates that a field has accumulated enough core
+    concepts, theorems, and methods to be taught systematically and to be recognized as a distinct domain of expertise.
+    König’s work gathered material on paths, cycles, trees, factorization, and applications, helping transform a set of
+    loosely connected themes into an organized discipline.
+</p>
+<p>
+    Later mid-twentieth-century textbooks further strengthened this identity. Frank Harary’s Graph Theory (1969), for
+    example, helped standardize terminology and broadened the subject’s reach, aligning it with the expanding role of
+    discrete mathematics in scientific and technical problems (Harary, 1969). Meanwhile, the postwar period saw graph
+    theory increasingly shaped by computing and probability. The theory of random graphs, introduced by Erdős and Rényi,
+    provided new models and methods for understanding typical rather than worst-case structure (Erdős & Rényi, 1959).
+    These later developments lie beyond the “origins” strictly construed, but they underscore a historical lesson: once
+    graph theory’s core abstraction was stabilized, it became a natural language for emerging problems in computation,
+    networks, and applied science.
+</p>
+<hr/>
+<h2 class="center">Conclusion: Origins as Convergence Rather Than Single Invention</h2>
+<br/>
+<p>
+    The history and origins of graph theory are best described as a convergence of lines of inquiry rather than a single
+    invention event. Euler’s Königsberg paper provided a canonical founding episode by showing how a traversal puzzle
+    could be transformed into a theorem about degree and connectivity. Nineteenth-century work then expanded the range
+    of graph-like structures through electrical networks (Kirchhoff), tree enumeration and chemical combinations
+    (Cayley), and the very act of naming connectivity diagrams as “graphs” (Sylvester). The map-coloring tradition
+    supplied long-term pressure to develop planar graph theory, while early-twentieth-century results such as
+    Kuratowski’s characterization and Whitney’s structural work demonstrated that graphs could sustain deep internal
+    mathematics. Finally, König’s 1936 textbook marked the institutional transition from a constellation of problems to
+    a recognized discipline. In this sense, graph theory’s origins are a case study in how mathematics grows:
+    abstraction is repeatedly forced by the need to unify methods across contexts, until the abstraction itself becomes
+    a central object of study.
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<br/>
+<p>
+    Birkhoff, G. D. (1912). A determinant formula for the number of ways of coloring a map. Annals of Mathematics,
+    14(1/4), 42–46.
+</p>
+<p>
+    Bondy, J. A., & Murty, U. S. R. (1976). Graph theory with applications. Macmillan Press.
+</p>
+<p>
+    Cayley, A. (1857). On the theory of the analytical forms called trees. The London, Edinburgh, and Dublin
+    Philosophical Magazine and Journal of Science, 13(85), 172–176.
+</p>
+<p>
+    De Risi, V. (2015). Analysis situs, the foundations of mathematics, and a geometry of space. In M. R. Antognazza
+    (Ed.), The Oxford handbook of Leibniz (pp. 247–258). Oxford University Press.
+</p>
+<p>
+    Erdős, P., & Rényi, A. (1959). On random graphs I. Publicationes Mathematicae Debrecen, 6, 290–297.
+</p>
+<p>
+    Euler, L. (1741). Solutio problematis ad geometriam situs pertinentis. Commentarii academiae scientiarum
+    Petropolitanae, 8, 128–140.
+</p>
+<p>
+    Harary, F. (1969). Graph theory. Addison-Wesley.
+</p>
+<p>
+    Heawood, P. J. (1890). Map-colour theorem. The Quarterly Journal of Pure and Applied Mathematics, 24, 332–338.
+</p>
+<p>
+    Kempe, A. B. (1879). On the geographical problem of the four colours. American Journal of Mathematics, 2(3),
+    193–200.
+</p>
+<p>
+    Kirchhoff, G. (1847). Über die Auflösung der Gleichungen, auf welche man bei der Untersuchung der linearen
+    Vertheilung galvanischer Ströme geführt wird. Annalen der Physik und Chemie, 72, 498–508.
+</p>
+<p>
+    König, D. (1936). Theorie der endlichen und unendlichen Graphen: Kombinatorische Topologie der Streckenkomplexe.
+    Akademische Verlagsgesellschaft.
+</p>
+<p>
+    Kuratowski, C. (1930). Sur le problème des courbes gauches en topologie. Fundamenta Mathematicae, 15(1), 271–283.
+</p>
+<p>
+    Petersen, J. (1891). Die Theorie der regulären graphs. Acta Mathematica, 15, 193–220.
+</p>
+<p>
+    Sylvester, J. J. (1878a). Chemistry and algebra. Nature, 17, 284. doi:10.1038/017284a0
+</p>
+<p>
+    Sylvester, J. J. (1878b). On an application of the new atomic theory to the graphical representation of the
+    invariants and covariants of binary quantics—with three appendices. American Journal of Mathematics, 1(1), 64–125.
+</p>
+<p>
+    Wagner, K. (1937). Über eine Eigenschaft der ebenen Komplexe. Mathematische Annalen, 114, 570–590.
+</p>
+<p>
+    Whitney, H. (1932). Non-separable and planar graphs. Transactions of the American Mathematical Society, 34(2),
+    339–362.
+</p>
+<p>
+    Wilson, R., Watkins, J. J., & Parks, D. J. (2023). Graph theory in America: The first hundred years. Princeton
+    University Press.
+</p>
+<p>
+    Biggs, N. L., Lloyd, E. K., & Wilson, R. J. (1976). Graph theory 1736–1936. Clarendon Press.
+</p>
