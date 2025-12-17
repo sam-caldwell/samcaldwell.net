@@ -1,0 +1,723 @@
+---
+layout: page
+title: The History of Data Compression&colon; An Algorithmic and Mathematical Survey
+date: 2025-12-15 23:39:38-0600
+description: This article presents a comprehensive survey of the history of data compression algorithms.
+keywords: compression, entropy, mathematics, computer science, information theory, Nyquist, Hartley, Shannon, Huffman, Lempel-Ziv, LZ77, LZ78, LZW,GZIP, DEFLATE, LZMA, BZIP2, LZ4, ZSTD, LZ0, LZ4HC, CRSCE
+math: true
+---
+<hr/>
+<h2 class=center>Abstract</h2>
+<p>
+    Data compression is the systematic reduction of the number of bits required to represent information. Its modern
+    form emerged from early telecommunications work that quantified information and from mid-twentieth-century
+    information theory that established rigorous limits on compressibility. This paper surveys the historical
+    development of data compression from early measures of information to contemporary lossless and lossy coding
+    systems. The discussion is organized around major algorithmic families: entropy coding (prefix codes, arithmetic
+    coding, and later state-based coders), dictionary methods (Lempel–Ziv variants and their descendants), block-sorting
+    and context modeling (Burrows–Wheeler and prediction by partial matching), and transform-based lossy compression
+    (notably DCT- and wavelet-based image coding). For each family, mathematical descriptions are provided to clarify
+    how probability models, redundancy, and coding constraints determine achievable compression rates. Strengths and
+    weaknesses are analyzed using criteria such as optimality relative to entropy, computational cost, memory
+    requirements, streaming and random-access properties, error propagation, and standardization constraints (including
+    historical patent encumbrances). The survey concludes by situating modern general-purpose compressors and emerging
+    learned compression techniques within the broader historical arc: increasingly sophisticated probabilistic modeling
+    coupled to increasingly efficient entropy coders, guided by the enduring theoretical benchmarks established by
+    information theory.
+</p>
+<hr/>
+<h2 class="center">The History of Data Compression: An Algorithmic and Mathematical Survey</h2>
+<br/>
+<p>
+    Compression has always been motivated by scarcity: limited bandwidth, limited storage, limited computational time,
+    or—often—some combination of all three. Early telegraph and telephone systems confronted scarcity directly, forcing
+    engineers to ask how many distinct messages could be reliably transmitted per unit time, and how symbol choices and
+    coding could increase throughput. Later, the rise of digital computing reframed the same problem for files, memory
+    hierarchies, networks, and multimedia. The key historical shift was the transition from ad hoc coding tricks to a
+    mathematically grounded discipline: information theory provided performance bounds, and algorithmic innovation
+    created practical schemes that approached those bounds under real-world constraints (Shannon, 1948).
+</p>
+<p>
+    This paper traces that evolution by focusing on the central idea that compression is a two-part endeavor: (a)
+    modeling regularities in data (probabilities, contexts, repetitions, or perceptual irrelevancies), and (b) encoding
+    the modeled data efficiently into bits. The boundary between modeling and encoding is not merely conceptual. Many of
+    the most consequential historical innovations—Huffman coding, arithmetic coding, Lempel–Ziv parsing, and transform
+    coding—can be understood as new ways to exploit structure while maintaining decodability and robustness. At the same
+    time, practical adoption has depended on engineering realities: speed, memory, streaming capability, and
+    standardization (Deutsch, 1996; Wallace, 1991).
+</p>
+<p>
+<h2 class="center">Mathematical and Conceptual Foundations</h2>
+<br/>
+<h3>Early quantification of “information” in telecommunications</h3>
+<p>
+    Two early telecommunications papers illustrate the prehistory of modern compression: Nyquist’s analysis of telegraph
+    speed and Hartley’s quantitative measure of information. Nyquist (1924) examined limits on transmission speed as a
+    function of signal shaping and code choice, anticipating later distinctions between channel constraints and code
+    design. Hartley (1928) proposed a measure of information based on the number of possible symbol selections,
+    effectively treating information as proportional to the logarithm of the number of equiprobable alternatives. In
+    modern notation, if a system can select one message from <span>$N$</span> equally likely possibilities, a natural
+    measure is
+    <span class="math display">$$
+        I=log_bN,
+    $$</span>
+    where <span>b</span> determines the unit (e.g., b = 2 for bits). Hartley’s formulation did not yet incorporate
+    arbitrary probability distributions, but it established the essential logarithmic relationship between choices and
+    information.
+</p>
+<p>
+    These results did not immediately yield a general compression theory. However, they framed the core question that
+    compression later answered: given constraints on representation or transmission, how can one encode “more likely”
+    messages with fewer resources without losing decodability?
+</p>
+<br/>
+<h3>Shannon entropy and the source coding viewpoint</h3>
+<br/>
+<p>
+    Shannon (1948) unified earlier telecommunications insights into a general theory. For a discrete memoryless source
+    <span>$𝑋$</span> with alphabet <span>$\chi$</span> and probabilities <span>$p(x)$</span>, Shannon defined entropy
+    <span class="math display">
+        $$
+            H(X)= - \sum_{x \in \chi} p(x)\ log_2\ p(x)
+        $$
+    </span>
+    interpretable as the irreducible average uncertainty (in bits per symbol) under the assumed model. Compression
+    becomes the problem of representing draws from <span>$X$</span> using, on average, as close to <span>$H(X)$</span>
+    bits per symbol as possible.
+</p>
+<p>
+    A key conceptual contribution is the separation between (a) the statistics of the source (modeling) and (b) the
+    mechanics of code construction (encoding). This separation became historically crucial: it enabled modular systems
+    in which improved modeling (contexts, dictionaries, transforms) could be paired with improved entropy coders (prefix
+    codes, arithmetic coding, later state-based coders).
+</p>
+<br/>
+<h3>Kraft inequality and the structure of uniquely decodable codes</h3>
+<br/>
+<p>
+    A large fraction of early lossless compression can be understood through uniquely decodable variable-length codes.
+    For binary prefix codes with codeword lengths <span>${l_i}$</span>, , Kraft’s inequality states that a prefix code
+    exists if and only if <span class="math display">$$
+
+        \sum_{i}2^{l_i} = \le 1.
+
+    $$</span>
+</p>
+<p>
+
+    This constraint links the combinatorics of code trees to achievable average length. If symbol <span>$i$</span>
+    occurs
+    with probability <span>$p_i$</span>, the expected code length is <span class="math display">$$
+        L = \sum_{i}p_il_i.
+    $$</span>
+</p>
+<p>
+    A foundational result is that optimal coding seeks to minimize <span>$L$</span> subject to Kraft’s
+    inequality—precisely the problem Huffman later solved optimally within the prefix-code class (Huffman, 1952).
+</p>
+<br/>
+<h3>Limits for lossy compression: rate–distortion theory</h3>
+<br/>
+<p>
+    Lossy compression deliberately discards information judged irrelevant under a fidelity criterion. Shannon (1959)
+    formalized this through rate–distortion theory. Given a distortion measure <span>$d(x,\hat{x})$</span> that
+    quantifies the difference between a source <span>$x$</span> and its reconstruction <span>$\hat{x}$</span> and an
+    average distortion constraint <span>$ E[d(X,\hat{X})] \le D $</span>, the rate-distortion function is
+    <span class="math display">$$
+        R(D) = \min\limits_{p():E[d(x,x)]\le D} I(X;\hat{X}).
+    $$</span>
+    where <span>$I(X;\hat{X})$</span> is mutual information. Historically, this provided the theoretical benchmark for
+    later multimedia codecs: transform coding and quantization can be interpreted as engineered approximations to
+    rate–distortion optimality under practical constraints.
+</p>
+<br/>
+<h2 class="center">Lossless Compression I: Entropy Coding and Variable-Length Codes</h2>
+<br/>
+<h3>From heuristic variable-length codes to Shannon–Fano style constructions</h3>
+<br/>
+<p>
+    Before Huffman coding, variable-length coding was often built by assigning shorter codewords to more probable
+    symbols, guided by the heuristic <span>$l_i \approx -log_2\ p_i$</span>. Shannon’s theoretical development made this
+    heuristic principled: the ideal code length for symbol <span>$i$</span> under a model is <span>$-log_2\ p_i$</span>.
+    However, because codeword lengths must be integers in standard prefix coding, a practical code must approximate
+    these real-valued lengths while satisfying Kraft’s inequality.
+</p>
+<p>
+    Shannon–Fano-style constructions (associated historically with Shannon and Fano) illustrate the early stage of the
+    field: they produce valid prefix codes using probability partitioning, but they do not guarantee optimality among
+    prefix codes. Their historical importance lies less in performance than in demonstrating that probability-informed
+    variable-length coding could systematically reduce average length relative to fixed-length encodings.
+</p>
+<p>
+    Strengths and weaknesses. Early partition-based prefix codes are simple and fast to implement, with deterministic
+    decoding. Their primary weakness is suboptimality: they can produce average lengths measurably worse than the
+    optimum achievable within the prefix-code class, especially when probabilities are skewed or poorly structured.
+</p>
+<br/>
+<h3>Huffman coding: optimal prefix codes (1952)</h3>
+<br/>
+<p>
+    Huffman (1952) introduced an algorithm that constructs a minimum-redundancy prefix code for a known set of symbol
+    probabilities. The algorithm repeatedly combines the two least probable symbols into a composite symbol whose
+    probability is the sum of its children, yielding a binary tree; codewords are then assigned by traversing the tree
+    (e.g., left edge <span>$0$</span>, right edge <span>$1$</span>). Huffman’s key result is that this construction
+    minimizes the expected length <span>$L$</span> over all binary prefix codes for the given distribution.
+</p>
+<p>
+    A well-known bound captures Huffman’s near-entropic optimality. For a source with entropy <span>$H(X)$</span>, the
+    expected length <span>$L_{Huff}$</span> of an optimal binary Huffman code satisfies<span class="math display">$$
+        H(X) \le L_{Huff} < H(X) + 1.
+    $$</span> This inequality historically mattered because it connected a concrete algorithm to Shannon’s abstract
+    limit: Huffman coding can be guaranteed to be within one bit per symbol of the entropy, independent of the alphabet
+    size.
+</p>
+<p>
+    Strengths. Huffman coding is computationally efficient, yields fast decoding (tree traversal or table lookup), and
+    is robustly adopted in standards. Its prefix property enables streaming decoding without backtracking and provides
+    clear symbol boundaries.
+</p>
+<p>
+    Weaknesses. Huffman coding is constrained by integer code lengths and dyadic probabilities. Because it effectively
+    approximates probabilities using powers of two, it can be measurably suboptimal when symbol probabilities do not
+    align well with dyadic fractions. Huffman codes also require either a static probability model (fixed code tree) or
+    transmission of codebooks (overhead) when the model changes. For adaptive scenarios, frequent code-tree updates can
+    be costly or complicate interoperability.
+</p>
+<h3>Universal codes for integers and runs: Elias and Golomb families</h3>
+<p>
+    Compression often requires coding integers: lengths, distances, counts, and run lengths. Universal integer codes
+    address this without assuming a fixed maximum value.
+</p>
+<p>
+    Elias codes. Elias (1975) described universal codeword sets for integer representation. For example, Elias gamma
+    coding represents a positive integer <span>$n$</span> using a unary prefix for
+    <span>$\lfloor log_2\ n\rfloor$</span>
+    followed by the remaining binary bits of <span>$n$</span>. if <span>$n$</span> has binary length <span>
+    $k = \lfloor log_2\ n\rfloor$</span>, the gama code length is <span class="math display">
+    $$
+    \ell_{\gamma}(n)=2\left[\log_{2} n\right]+1.
+    $$</span>
+    These codes are historically important because they provide a principled, prefix-free way to represent unbounded
+    integers, widely used as subcomponents in larger compressors.
+</p>
+<p>
+    Golomb codes and run-length modeling. Golomb (1966) studied run-length encodings and derived codes well-matched to
+    geometrically distributed integers, a common model for run lengths and residual magnitudes. A Golomb code with
+    parameter <span>$M$</span> represents an integer <span>$n$</span> by quotient and remainder:
+    <span class="math display">$$
+        n = qM + r,
+    $$</span>with a unary code for <span>$q$</span>and a truncated binary code for <span>$r$</span>. When the data
+    follows a geometric distribution, an appropriate <span>$M$</span> yields near-optimal prefix coding.
+</p>
+<p>
+    Strengths. Universal integer codes are compact, simple, and require no explicit probability tables. They are
+    particularly effective when integer magnitudes have heavy-tailed or geometric-like behavior.
+</p>
+<p>
+    Weaknesses. These codes are not optimal for arbitrary distributions and can be inferior to arithmetic-coded integers
+    under accurate probabilistic models. They can also impose overhead when integers are small but not geometrically
+    distributed, or when adaptivity in <span>$M$</span> is not handled well.
+</p>
+<hr/>
+<h2 class="center">Lossless Compression II: Arithmetic Coding and Beyond</h2>
+<br/>
+<h3>Arithmetic coding: approaching entropy without integer-length constraints</h3>
+<br/>
+<p>
+    Arithmetic coding emerged as a response to Huffman coding’s core limitation: integer code lengths. In arithmetic
+    coding, a sequence of symbols is encoded as a subinterval of <span>$[0,1)$</span>. Given a probability model over
+    symbols, the coder progressively refines the interval. Suppose the current interval is <span>$[L,U)$</span> and the
+    next symbol is <span>$s$</span>. Let <span>$C(s)$</span> be the cumulative probability below <span>$s$</span>, and
+    let <span>$p(s)$</span> be the probability of <span>$s$</span>. The updated interval becomes
+    <span class="math display">$$
+        L' = L + (U - L)\ C(s),\
+        U' = L + (U - L)\ (C(s)+p(s)).
+    $$</span>
+    After processing the full sequence, any number within the final interval represents the entire message.
+</p>
+<p>
+    A central mathematical feature is that arithmetic coding can achieve average code length arbitrarily close to the
+    ideal <span>$-log_2 P(x)$</span> for a sequence <span>$x$</span>, up to finite-precision and modeling overhead. The
+    code length corresponds roughly to the negative log-provability of the message: <span class="math display">
+    $$
+        \gamma(x) \approx -log_2 P(x).
+    $$
+    </span>
+    Historically, this was transformative because it made it possible to realize modeling improvements directly as bit
+    savings, without the granularity losses of integer-length prefix codes (Rissanen, 1976; Rissanen & Langdon, 1979;
+    Witten et al., 1987).
+</p>
+<p>
+    Strengths. Arithmetic coding is near-optimal for a given probability model and naturally supports adaptive modeling:
+    probabilities can be updated after each symbol without rebuilding a code tree. It also cleanly separates the model
+    from the coder—an architectural feature emphasized in later compression systems (Witten et al., 1987).
+</p>
+<p>
+    Weaknesses. Arithmetic coding historically faced implementation challenges: finite-precision arithmetic, carry
+    handling, and performance overhead relative to table-driven Huffman decoding. Additionally, standardization and
+    deployment were influenced by intellectual property concerns in specific variants; for example, the JPEG standard
+    included an arithmetic mode but listed patents potentially required for implementing arithmetic-coded processes
+    (ITU/ISO patent disclosures as reflected in JPEG Annex L).
+</p>
+<br/>
+<h3>Practical entropy coding in standards: the patent and deployment dimension</h3>
+<br/>
+<p>
+    Compression history is not only technical; it is also institutional. In the JPEG standardization era, arithmetic
+    coding offered better compression than Huffman coding for many images, but its adoption in widespread software was
+    influenced by patent disclosures and licensing complexity. JPEG Annex L explicitly warns that certain arithmetic
+    coding processes may require use of inventions covered by patents and lists multiple patents associated with
+    arithmetic-coded processes (Annex L of the JPEG standard). This episode illustrates a recurring theme: even when an
+    algorithm is mathematically superior, ecosystem factors (licensing, compatibility, and implementation risk) can
+    delay adoption or steer standards toward simpler alternatives.
+</p>
+<br/>
+<h3>State-based entropy coding: asymmetric numeral systems (ANS)</h3>
+<br/>
+<p>
+    A more recent development in entropy coding is asymmetric numeral systems (ANS), introduced by Duda (2009,
+    2013). ANS can be viewed as encoding information into a single integer “state” that evolves as symbols are
+    processed. Whereas arithmetic coding maintains an interval, ANS maintains a state <span>$x$</span> and updates
+    it approximately according to symbol probabilities. A simplified intuition is:
+    <span class="math display">$$
+        x' \approx \frac{x}{p(s)},
+    $$</span>
+    meaning that encoding a symbol of probability <span>$p(s)$</span> increases the information content in the state by
+    about <span>$log_2 \frac{1}{p(s)}$</span> bits. Practical "tabled" <span>$ANS(tANS)$</span> variants precompute
+    transitions so that encoding and decoding become fast table operations.
+</p>
+<p>
+    <b>Strengths.</b> ANS can combine near-arithmetic compression efficiency with high decoding speed, making it
+    attractive for modern high-throughput compressors. Its table-driven structure can be cache-friendly and
+    parallelizable.
+</p>
+<p>
+    <b>Weaknesses.</b> ANS requires careful table construction and typically relies on block-based probability
+    estimation; it can be less straightforward than Huffman coding conceptually and may impose constraints on
+    probability quantization and implementation. Its benefits are most pronounced when integrated into modern compressor
+    architectures designed around it.
+</p>
+<hr/>
+<h2 class="cneter">Dictionary Methods and the Lempel–Ziv Lineage</h2>
+<br/>
+<h3>Run-length encoding as a conceptual ancestor</h3>
+<br/>
+<p>
+    Run-length encoding (RLE) predates many sophisticated compressors and remains conceptually foundational: it replaces
+    repeated symbols with a count and value. In the simplest form, a run of <span>$k$</span> identical symbols
+    <span>$a$</span> becomes <span>(a,k).</span> Although RLE is not universally effective&mdash;indeed it can expand
+    data without runs&mdash;it is historically important as the simplest demonstration fo exploiting reundancy by
+    structural substitution.
+</p>
+<p>
+    Strengths. Extremely simple, fast, and effective on data with long constant runs (e.g., sparse bitmaps, simple
+    graphics, certain masks).
+</p>
+<p>
+    Weaknesses. Poor on high-entropy or alternating data; requires additional coding of counts; often used only as a
+    substage in more complex systems (e.g., after a transform that concentrates repeats).
+</p>
+<br/>
+<h3>LZ77 (1977): sliding-window phrase subsitution</h3>
+<br/>
+<p>
+    Ziv and Lempel (1977) introduced a universal algorithm for sequential data compression, now commonly associated with
+    LZ77. The central idea is dictionary coding with an implicit, adaptive dictionary: the recently seen text itself.
+    The encoder maintains a sliding window over past output and, at each position, finds the longest match between the
+    upcoming input and some substring in the window. The phrase is encoded as a pointer, often represented as a triple
+    <span>$(p,ℓ,d)$</span>, where <span>$d$</span> is the backward distance, <span>$ℓ$</span> the match
+    length, and <span>$c$</span> a following literal symbol.
+</p>
+<p>
+    A useful engineering analysis expresses the approximate bit cost of a pointer. If the window size is
+    <span>$W$</span>,
+    distances require about <span>$log_2\ W$</span> bits; if the maximum match length is <span>$L_{max}$</span>, lengths
+    require about <span>$log_2\ L_{max}z$</span> bits, plus a literal symbol cost. The algorithm compresses well when
+    long matches recur within the window, which is common in text, structured data, and many binary formats.
+</p>
+<p>
+    Strengths. LZ77 is adaptive and universal in an asymptotic sense: it can approach optimal compression ratios for
+    broad classes of sources without prior knowledge of probabilities (Ziv & Lempel, 1977). It supports streaming and
+    can be implemented efficiently with hashing or suffix structures.
+</p>
+<p>
+    Weaknesses. Match searching can be computationally expensive without careful data structures. The sliding window
+    limits long-range redundancy capture. Additionally, pointer-based coding can increase error propagation: a single
+    bit error may corrupt subsequent output until synchronization.
+</p>
+<br/>
+<h3>LZ78 (1978): explicit dictionary of phrases</h3>
+<br/>
+<p>
+    Ziv and Lempel (1978) introduced a related approach often associated with LZ78. Instead of referencing substrings in
+    a sliding window, LZ78 builds an explicit dictionary of phrases. The input is parsed into phrases that are the
+    shortest strings not yet in the dictionary; each phrase is encoded as <span>(i,c)</span>, where <span>$i$</span>
+    indexes the longest previously seen phrase and <span>$c$</span> is the next character extending it. The dictionary
+    grows as phrases are added.
+</p>
+<p>
+    Strengths. Explicit phrase dictionaries can capture patterns beyond a fixed sliding window, especially when the
+    dictionary is allowed to grow substantially. The theoretical framework also supports universality and asymptotic
+    optimality under broad conditions (Ziv & Lempel, 1978).
+</p>
+<p>
+    Weaknesses. Dictionary growth increases memory usage and may require resets or eviction policies in bounded-memory
+    implementations. Like other dictionary methods, performance depends on data repetitiveness and can be weaker on
+    already randomized or strongly encrypted/compressed inputs.
+</p>
+<br/>
+<h3>LZW (1984): engineering refinement and ecosystem impact</h3>
+<br/>
+<p>
+    Welch (1984) proposed LZW as a practical refinement that eliminates the need to transmit explicit characters in the
+    <span>$(i,c)$</span> pairs by initializing the dictionary with all single-symbol strings and transmitting only
+    dictionary indices thereafter. This made LZW attractive for implementations constrained by simplicity and speed and
+    led to widespread adoption in formats such as GIF.
+</p>
+<p>
+    The broader historical story includes intellectual property. The LZW method was associated with a U.S. patent (US
+    4,558,302), and licensing enforcement became a significant controversy in the 1990s for GIF-related software
+    ecosystems. This episode underscores that compression history is shaped both by code efficiency and by legal
+    standardization realities.
+</p>
+<p>
+    Strengths. Simple decoding, good performance on many natural-language and structured inputs, and historically easy
+    integration into file formats.
+</p>
+<p>
+    Weaknesses. Compression is modest relative to later LZ+entropy-coding hybrids. Patent encumbrance (historically)
+    inhibited adoption in some open ecosystems, motivating alternative formats and algorithms.
+</p>
+<br/>
+<h3>DEFLATE and the LZ77 + Huffman synthesis (1990s standardization)</h3>
+<br/>
+<p>
+    A major historical synthesis is the combination of LZ77-style backreferences with Huffman coding of literals and
+    match descriptors, exemplified by DEFLATE (Deutsch, 1996). In DEFLATE, the stream is tokenized into literals and
+    length–distance pairs. Then Huffman coding compresses the token stream, often with dynamic Huffman trees per block.
+</p>
+<p>
+    This architecture reflects a mature separation of concerns:
+</p>
+<ol>
+    <li>Dictionary parsing captures repetition and structure (modeling by substitution).</li>
+    <li>Entropy coding compresses the resulting symbol stream close to its entropy (coding efficiency).</li>
+</ol>
+<p>
+    Strengths. Strong general-purpose performance, broad interoperability, and efficient decoding. Block structure
+    supports streaming, error containment, and practical memory limits. The algorithm’s use in widely deployed
+    ecosystems made it one of the most consequential compression designs in practice.
+</p>
+<p>
+    Weaknesses. Compression ratio is constrained by design choices such as fixed maximum window size (e.g., 32 KiB
+    backreference window in DEFLATE) and bounded match lengths. It can be outperformed by later compressors that use
+    larger windows, more elaborate modeling, or more efficient entropy coders.
+</p>
+<hr/>
+<h2 class="center">Block Sorting and Context Modeling</h2>
+<br/>
+<h3>Burrows–Wheeler transform (1994): making data easier to compress</h3>
+<p>Burrows and Wheeler (1994) introduced a reversible transformation that rearranges a block of text to increase local
+    symbol clustering, improving the effectiveness of subsequent simple coders. The Burrows–Wheeler transform (BWT) can
+    be defined as follows. Given a string <span>$s$</span> terminated with a unique end marker, consider all cyclic
+    rotations of <span>$S$</span>, sort them lexicographically, and take the last column of the sorted rotation matrix
+    as the transformed output <span>$L$</span>. Decoding relies on reconstructing the sorted rotations implicitly using
+    last–first mapping.
+</p>
+<p>
+    The BWT does not itself compress; it transforms the data so that simple schemes such as move-to-front (MTF),
+    run-length encoding, and entropy coding become highly effective. This approach underlies compressors like bzip2,
+    which combine BWT with Huffman coding and related stages.
+</p>
+<p>
+    Strengths. Excellent compression on many text-like and structured inputs, often approaching the performance of
+    sophisticated statistical compressors while remaining implementable.
+</p>
+<p>
+    Weaknesses. Block-based design limits streaming and random access: to transform, a whole block must be available,
+    and decoding typically proceeds per block. Memory usage and latency increase with block size. Sorting also increases
+    computational cost relative to LZ77-style streaming compressors.
+</p>
+<h3>Prediction by partial matching (PPM): adaptive context modeling (1980s)</h3>
+<p>
+    Cleary and Witten (1984) introduced prediction by partial matching (PPM), a family of adaptive statistical
+    compressors based on context modeling. The core idea is to estimate the probability of the next symbol using
+    preceding symbols (the context). For a maximum context order 𝑘, the model estimates <span>$$
+    p(x_t|x_{t-1},\ x_{t-2},\ ...,\ x_{t-k}),
+    $$</span> backing off to shorter contexts if the current context has not been observed sufficiently. PPM is
+    typically paired with arithmetic coding to exploit the resulting probability estimates with minimal coding loss.
+</p>
+<p>
+    Strengths. PPM can achieve very high compression ratios on text and other data with strong contextual regularities.
+    Its adaptive nature means it can learn the structure of a file without prior training.
+</p>
+<p>
+    Weaknesses. Computational and memory costs are high: maintaining context trees and escape mechanisms is complex, and
+    arithmetic coding adds overhead. PPM is therefore less common in real-time or resource-constrained deployments,
+    despite its strong compression performance.
+</p>
+<hr/>
+<h2 class="center">Lossy Compression and Multimedia: Transform Coding as the Dominant Paradigm</h2>
+<br/>
+<h3>General transform-coding architecture</h3>
+<p>
+    Most successful lossy codecs follow a pipeline that can be understood mathematically:
+</p>
+<ol>
+    <li>Decorrelate the signal with a transform or predictor.</li>
+    <li>Quantize transform coefficients (introducing controlled loss).</li>
+    <li>Entropy-code quantized symbols losslessly.</li>
+</ol>
+<p>
+    Let <span>$x ∈ R^N</span> be a signal block (e.g., image pixels). A linear transform produces <span>
+    $y=Tx, where$</span> <span>$T$</span> is often orthonormal or approximately energy-compacting. Quantization maps
+    <span>$y$</span> to integers <span>$\hat{y}$</span>. A simple scalar quantizer with step <span>$Δ$</span> is
+    <span>$$
+        \hat{y}_i = Q_Δ(y_i) = Δ \dot round(y_i/Δ).
+    $$</span>
+    The decoder reconstructs <span>$\tilde{x}=T^{-1}\hat{y}.$</span> The entropy coder then compresses the discrete
+    stream <span>$\hat{y}$</span> based on its empirical distribution.
+</p>
+<p>
+    The historical success of this architecture stems from the fact that transforms concentrate signal energy: a few
+    coefficients carry most visually or perceptually important information, while many coefficients can be coarsely
+    quantized or zeroed with limited perceptual impact.
+</p>
+<br/>
+<h3>The discrete cosine transform (DCT) and its historical role</h3>
+<br/>
+<p>
+    Ahmed et al. (1974) introduced the discrete cosine transform, which became central to image and video coding due to
+    its strong energy compaction properties for typical natural images and its efficient implementations. A common
+    DCT-II definition for a length-𝑁 sequence <span>$x_n$</span> is <span>$$
+        X_k = \sum_{n=0}^{N-1} x_n \cos \left[ \frac{\pi}{N}\left(n+ \frac{1}{2}\right)k \right], k=0,\ 1,\ \dots,\ N-1.
+    $$</span> with normalization factors omitted for brevity (and dependent on convention). The DCT’s ability to
+    approximate the Karhunen–Loève transform for certain signal classes provided a theoretical rationale for its
+    effectiveness.
+</p>
+<p>
+    Strengths. Efficient fast algorithms, strong energy compaction, and excellent compatibility with block-based
+    processing and hardware acceleration.
+</p>
+<p>
+    Weaknesses. Block transforms can create blocking artifacts at low bitrates due to independent block quantization, a
+    signature limitation historically visible in early JPEG implementations.
+</p>
+<br/>
+<h3>JPEG (1990s): standardization of DCT-based image coding</h3>
+<br/>
+<p>
+    Wallace (1991) described the JPEG still picture compression standard, which formalized a DCT-based pipeline: block
+    splitting (typically <span>$8 x 8</span>), DCT, quantization with perceptually tuned tables, zig-zag scanning,
+    run-length and differential coding of coefficients, and entropy coding (Huffman or arithmetic). The ISO/IEC JPEG
+    standard (ISO/IEC 10918-1) further institutionalized this approach, driving massive adoption.
+</p>
+<p>
+    Strengths. JPEG offers a tunable rate–quality trade-off, broad interoperability, and efficient decoding. Its design
+    aligns with human visual sensitivity by quantizing high-frequency components more aggressively.
+</p>
+<p>
+    Weaknesses. Blocking artifacts and ringing at aggressive compression; limited support for advanced scalability or
+    region-of-interest features compared to later wavelet-based designs. Historically, the optional arithmetic mode’s
+    adoption was influenced by patent disclosure considerations (Annex L of the JPEG standard).
+</p>
+<br/>
+<h3>Wavelet coding and JPEG 2000</h3>
+<br/>
+<p>
+    Wavelet-based coding, standardized in JPEG 2000, replaced block DCT transforms with multiresolution wavelet
+    decompositions, improving scalability and often reducing blocking artifacts. Wavelet transforms decompose a signal
+    into subbands across scales, producing coefficients that can be coded progressively. A discrete wavelet transform
+    can be described (at a high level) via filter banks producing approximation and detail coefficients across levels:
+    <span>$$
+        a_{j+1}[n]=\sum_{m} h[m-2n]\,a_j[m], \qquad
+        d_{j+1}[n]=\sum_{m} g[m-2n]\,a_j[m],
+    $$</span> where <span>$h$</span> and <span>$g$</span> are low-pass and high-pass filters and <span>$a_0$</span> is
+    the input signal. JPEG 2000 then applies sophisticated bitplane and context coding to the coefficients (Taubman &
+    Marcellin, 2002).
+</p>
+<p>
+    Strengths. Better scalability (progressive refinement by quality and resolution), reduced blocking artifacts, and
+    flexible region-of-interest coding.
+</p>
+<p>
+    Weaknesses. Higher computational complexity and memory demands; historically slower adoption in consumer workflows
+    compared to JPEG despite technical advantages.
+</p>
+<br/>
+<h3>Video coding as joint compression across time</h3>
+<br/>
+<p>
+    Video compression extends transform coding by exploiting temporal redundancy via motion estimation and compensation,
+    followed by transform coding of prediction residuals. A predictive frame can be modeled as <span>$$
+
+    \boldsymbol{\hat{F}_t(u)} = \boldsymbol{F_{t-1}}(\boldsymbol{u}+\boldsymbol{v(u)}),
+
+    $$</span>where <span>$\boldsymbol{v(u)}$</span> is a motion vector field and <span>$\boldsymbol{u}$</span> indexes
+    spatial location. The residual <span>$\boldsymbol{R_t}=F_t - \hat{F}_t$</span> is then transform-coded and
+    entropy-coded. Wiegand et al. (2003) provide an overview of H.264/AVC as a representative standard built on these
+    principles.
+</p>
+<p>
+    Strengths. Very large gains relative to intra-frame coding due to temporal prediction; flexible trade-offs between
+    compression and computational complexity.
+</p>
+<p>
+    Weaknesses. Encoder complexity is high (motion search is expensive), and predictive structures can amplify error
+    propagation across frames without robust resynchronization mechanisms.
+</p>
+<hr/>
+<h2 class="center">Modern General-Purpose Compression and Emerging Learned Codecs</h2>
+<br/>
+<h3>Modern standards as recombinations of historical ideas</h3>
+<br/>
+<p>
+    Contemporary general-purpose compressors frequently recombine established components: LZ77-style matching,
+    sophisticated match-finding heuristics, and modern entropy coding. For example, Brotli’s standardized format uses
+    LZ77 and Huffman coding (Alakuijala & Szabadka, 2016). Zstandard formalizes a modern format designed for speed and
+    ratio, reflecting the continuing relevance of dictionary matching coupled with efficient entropy coding (Collet &
+    Kucherawy, 2021).
+</p>
+<p>
+    These systems illustrate a historical continuity: the most durable architectures separate modeling (matches,
+    contexts, dictionaries) from entropy coding, because improvements in either component can yield immediate end-to-end
+    gains. They also show an engineering trend toward fast decoding, reflecting that many deployments are decode-heavy
+    (content distribution, storage retrieval) rather than encode-heavy.
+</p>
+<br/>
+<h3>Learned compression as a reappearance of rate–distortion optimization</h3>
+<br/>
+<p>
+    Learned compression systems, particularly for images, reframe transform coding as end-to-end optimization of
+    analysis and synthesis transforms under a rate–distortion objective. Ballé et al. (2017) model a nonlinear transform
+    coding system trained to minimize <span>$$
+
+    $$</span>where <span>$\boldsymbol{R}$</span> estimates expected code length (often via an entropy model over
+    latents) and <span>$\boldsymbol{D}$</span> measures distortion (e.g., mean squared error or perceptual metrics).
+    Later work incorporated richer priors to improve entropy modeling of latent representations (Minnen et al., 2018).
+    Historically, these approaches can be viewed as computational realizations of the same principle Shannon
+    formalized: compression is a trade-off between representation rate and fidelity (Shannon, 1959). What changes is
+    the mechanism: rather than designing <span>$T$</span> and quantizers analytically (DCT, wavelets), the system l
+    earns them from data.
+</p>
+<p>
+    Strengths. Strong empirical rate–distortion performance for images; flexible adaptation to specific distortion
+    metrics.
+</p>
+<p>
+    Weaknesses. Complexity, computational cost, and deployment friction: neural codecs often require significant compute
+    for encoding/decoding and can be difficult to standardize. They also introduce risks tied to model updates and
+    compatibility over time.
+</p>
+<hr/>
+<h2 class="center">Conclusion</h2>
+<br/>
+<p>
+    The history of data compression is a history of progressively sharpening the relationship between structure and
+    representation. Early telecommunications work quantified information and hinted that coding could exploit message
+    structure. Shannon’s information theory then established a rigorous benchmark—entropy for lossless compression and
+    rate–distortion limits for lossy compression—against which all later algorithms can be compared. Subsequent
+    milestones can be read as systematic efforts to close the gap between practical codes and theoretical limits:
+    Huffman coding optimizes prefix codes; arithmetic coding removes integer-length constraints and better reflects
+    probabilistic models; Lempel–Ziv methods exploit repetition universally without explicit prior models; and transform
+    coding exploits signal structure in ways aligned with human perception. Standards such as JPEG and DEFLATE
+    demonstrate that widespread adoption depends as much on implementability and ecosystem constraints as on compression
+    ratio. Contemporary formats and learned methods continue the same trajectory: improved modeling coupled with
+    efficient entropy coding, guided by the enduring mathematics of information.
+</p>
+<p>
+    However, as of 2025, the data compression space has stagnated. While learning compression represents a somewhat
+    novel implementation, it is nonetheless regurgitation of the same technologies for the most part. There has been
+    little to no substantive advances in lossless compression in decades, though lossy compression has seen some more
+    recent advances. This makes any radical departure from classic compression philosophies worthy of consideration,
+    as data volumes continue to grow but the efficiencies of compression do not.
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<p>
+    Ahmed, N., Natarajan, T., & Rao, K. R. (1974). Discrete cosine transform. IEEE Transactions on Computers, 23(1),
+    90–93.
+</p><p>
+    Alakuijala, J., & Szabadka, Z. (2016). Brotli compressed data format (RFC 7932). Internet Engineering Task Force.
+</p><p>
+    Ballé, J., Laparra, V., & Simoncelli, E. P. (2017). End-to-end optimized image compression. In Proceedings of the
+    International Conference on Learning Representations (ICLR). (Original preprint 2016).
+</p><p>
+    Burrows, M., & Wheeler, D. J. (1994). A block-sorting lossless data compression algorithm (SRC Research Report 124).
+    Digital Equipment Corporation Systems Research Center.
+</p><p>
+    Cleary, J. G., & Witten, I. H. (1984). Data compression using adaptive coding and partial string matching. IEEE
+    Transactions on Communications, 32(4), 396–402.
+</p><p>
+    Collet, Y., & Kucherawy, M. (2021). Zstandard compression and the “application/zstd” media type (RFC 8878). Internet
+    Engineering Task Force.
+</p><p>
+    Deutsch, P. (1996). DEFLATE compressed data format specification version 1.3 (RFC 1951). Internet Engineering Task
+    Force.
+</p><p>
+    Duda, J. (2009). Asymmetric numeral systems. arXiv preprint arXiv:0902.0271.
+</p><p>
+    Duda, J. (2013). Asymmetric numeral systems: Entropy coding combining speed of Huffman coding with compression rate
+    of arithmetic coding. arXiv preprint arXiv:1311.2540.
+</p><p>
+    Elias, P. (1975). Universal codeword sets and representations of the integers. IEEE Transactions on Information
+    Theory, 21(2), 194–203.
+</p><p>
+    Golomb, S. W. (1966). Run-length encodings. IEEE Transactions on Information Theory, 12(3), 399–401.
+</p><p>
+    Hartley, R. V. L. (1928). Transmission of information. The Bell System Technical Journal, 7(3), 535–563.
+</p><p>
+    Huffman, D. A. (1952). A method for the construction of minimum-redundancy codes. Proceedings of the IRE, 40(9),
+    1098–1101.
+</p><p>
+    International Organization for Standardization/International Electrotechnical Commission. (1994). Information
+    technology—Digital compression and coding of continuous-tone still images: Requirements and guidelines (ISO/IEC
+    10918-1:1994). ISO/IEC.
+</p><p>
+    Kolmogorov, A. N. (1965). Three approaches to the quantitative definition of information. Problemy Peredachi
+    Informatsii, 1(1), 3–11.
+</p><p>
+    Minnen, D., Ballé, J., & Toderici, G. (2018). Joint autoregressive and hierarchical priors for learned image
+    compression. In Advances in Neural Information Processing Systems (NeurIPS), 31, 10794–10803.
+</p><p>
+    Nyquist, H. (1924). Certain factors affecting telegraph speed. The Bell System Technical Journal, 3(2), 324–346.
+</p><p>
+    Rissanen, J. J. (1976). Generalized Kraft inequality and arithmetic coding. IBM Journal of Research and Development,
+    20(3), 198–203.
+</p><p>
+    Rissanen, J., & Langdon, G. G., Jr. (1979). Arithmetic coding. IBM Journal of Research and Development, 23(2),
+    149–162.
+</p><p>
+    Shannon, C. E. (1948). A mathematical theory of communication. The Bell System Technical Journal, 27, 379–423,
+    623–656.
+</p><p>
+    Shannon, C. E. (1959). Coding theorem for a discrete source with a fidelity criterion. IRE National Convention
+    Record, 4, 142–163.
+</p><p>
+    Storer, J. A., & Szymanski, T. G. (1982). Data compression via textual substitution. Journal of the ACM, 29(4),
+    928–951.
+</p><p>
+    Taubman, D. S., & Marcellin, M. W. (2002). JPEG2000: Image compression fundamentals, standards and practice. Kluwer
+    Academic Publishers.
+</p><p>
+    Welch, T. A. (1984). A technique for high-performance data compression. Computer, 17(6), 8–19.
+</p><p>
+    Wiegand, T., Sullivan, G. J., Bjøntegaard, G., & Luthra, A. (2003). Overview of the H.264/AVC video coding standard.
+    IEEE Transactions on Circuits and Systems for Video Technology, 13(7), 560–576.
+</p><p>
+    Witten, I. H., Neal, R. M., & Cleary, J. G. (1987). Arithmetic coding for data compression. Communications of the
+    ACM, 30(6), 520–540.
+</p><p>
+    W3C (archival reproduction of ISO/IEC material). (n.d.). Annex L (informative): Patents (Annex L of the JPEG
+    standard). World Wide Web Consortium.
+</p><p>
+    Ziv, J., & Lempel, A. (1977). A universal algorithm for sequential data compression. IEEE Transactions on
+    Information Theory, 23(3), 337–343.
+</p><p>
+    Ziv, J., & Lempel, A. (1978). Compression of individual sequences via variable-rate coding. IEEE Transactions on
+    Information Theory, 24(5), 530–536.
+</p>
+<p>
+    United States Patent No. 4,558,302. (1985). High speed data compression
+    and decompression apparatus and method (T. A. Welch). U.S. Patent and Trademark Office.
+</p>
