@@ -1,0 +1,916 @@
+---
+layout: page
+title: Cross-Sums Compression and Expansion (CRSCE)
+date: 2024-12-03 11:21:43-0600
+description: This article presents the Cross-Sums Compression and Expansion (CRSCE) algorithm
+keywords: lossless compression, binary data, modular arithmetic, structural summarization, cross-sums, cryptographic hashing, crsce, computer science, programming, mathematics
+math: true
+---
+<hr xmlns="http://www.w3.org/1999/html"/>
+<h2 id="abstract" class="center">Abstract</h2>
+<br/>
+<p>
+    Traditional lossless compression algorithms struggle to offer both high efficiency and predictable performance on
+    binary or high-entropy datasets. We present the compression phase of the Cross-Sums Compression and Expansion
+    (CRSCE) algorithm, a novel technique grounded in structural analysis of binary matrices. CRSCE bypasses entropy
+    coding and dictionary-based schemes by representing input as a 2D matrix and extracting compact summaries via
+    cross-sum metrics. This method achieves a consistent, deterministic compression ratio of
+    <span class="math inline">$42.97%$</span> for fixed <span class="math inline">$512\times512-bit$</span> blocks,
+    outperforming standard compressors in uniform and pseudo-random domains. Theoretical bounds are derived, and
+    compression properties are proven under modular arithmetic. Comparative analysis with LZ77, BWT, and arithmetic
+    coding illustrates CRSCE’s scalability and content-independent efficiency. This paper exclusively addresses the
+    compression process, demonstrating how structure-preserving summarization and cryptographic hashing yield
+    high-confidence, verifiable compression guarantees.
+</p>
+<br/>
+<h2 id="introduction" class="center">Introduction</h2>
+<br/>
+<p>
+    Lossless compression remains vital for domains where data integrity is paramount—such as archival systems,
+    distributed databases, and cryptographic pipelines. Classical algorithms, including Huffman coding (Huffman, 1952),
+    LZ77 (Ziv &amp; Lempel, 1977), and DEFLATE, primarily exploit local redundancy or symbol frequency. However, these
+    techniques degrade sharply on binary or random-like datasets, where such patterns vanish (Sayood, 2018).
+</p>
+<p>
+    This work introduces a rigorously designed structural compression scheme—Cross-Sums Compression (CRSCE)—that
+    compresses data deterministically using cross-sum reductions of binary matrices. The resulting algorithm avoids
+    entropy dependence, providing content-invariant compression rates and mathematical verifiability.
+</p>
+<hr/>
+<h2 id="limitations-of-conventional-algorithms" class="center">Limitations of Conventional Algorithms</h2>
+<br/>
+<p>
+    The DEFLATE algorithm (Deutsch, 1996), a hybrid of LZ77 and Huffman coding, has become the de facto lossless
+    standard. While efficient on structured or repetitive data, DEFLATE and Huffman will fail to compress uniformly
+    random data (Shannon, 1948). Compression tools like BZIP2 (based on Burrows-Wheeler Transform) and ZPAQ (a context
+    mixing compressor) fare better but lack predictable compression ratios.
+</p>
+<hr/>
+<h2 id="features-of-crsce" class="center">Features of CRSCE</h2>
+<br/>
+<p>
+    The Cross-Sums Compression and Expansion (CRSCE) algorithm offers advantages over conventional compression:
+</p>
+<ol type="1">
+    <li><p>
+        <strong>Effective, Consistent Compression of Arbitrary Inputs.</strong> Given any two arbitrary inputs of the
+        same size, regardless of content, the CRSCE algorithm will produce a compressed result. The user could compress
+        photos or the output of /dev/random with the same effectiveness as a result.
+    </p></li>
+    <li><p>
+        <strong>Predictable Compression Rates.</strong> Given only the size of an input (or the compression blocks
+        into which the input will be subdivided), the compression rate can be computed ahead of actual compression.
+        Thus, a user could forecast the storage needs of the compressed output ahead of running the compression
+        algorithm to better control costs.
+    </p></li>
+</ol>
+<p>
+    Both of the above features are missing from conventional compression algorithms.
+</p>
+<br/>
+<h2 id="theoretical-foundation-of-cross-sums-compression" class="center">Theoretical Foundation of Cross-Sums
+    Compression</h2>
+<br/>
+<h3 id="matrix-representation" class="fst-italic">Matrix Representation</h3>
+<br/>
+<p>
+    The CRSCE algorithm represents input data as one or more two-dimensional <span class="math inline">$s \times s
+    $</span> binary matrices called CSM:<span class="math display">$$
+
+        CSM = \ \begin{bmatrix}a_{0,0} &amp; &amp; \ldots &amp; &amp; a_{0,s - 1} \\
+        &amp; &amp; &amp; &amp; \\
+        \vdots &amp; &amp; \ddots &amp; &amp; \vdots \\
+        &amp; &amp; &amp; &amp; \\
+        a_{s - 1,0} &amp; &amp; \ldots &amp; &amp; a_{s - 1.s - 1}
+        \end{bmatrix},\ a\  \in \{ 0,\ 1\}
+
+    $$</span>where&mdash;<span class="math display">$$
+
+        \left\{ s\mathbb{\in Z\ }\left| \
+        \begin{matrix}
+        s &gt; 292 \\
+        s^{2} \equiv 0\ (mod\ b) \\
+        b = \log_{2}{(s)}
+        \end{matrix} \right.\  \right.\
+
+    $$</span>Because CSM is a square matrix, we can then say the smallest CSM block must be <span>$s=512$</span>,
+    this yields a 32 KB data block. This is discussed more, later.
+</p>
+<hr/>
+<h2 id="cross-sum-matrices" class="center">Cross-Sum Matrices</h2>
+<br/>
+<p>
+    From the CSM, CRSCE computes four (4) structural summaries called “Cross Sums”:
+</p>
+<table>
+    <tr>
+        <td><strong>Lateral Sum Matrix (LSM):</strong></td>
+        <td>&nbsp;</td>
+        <td><span class="math display">$${LSM}_{r} = \sum_{c = 0}^{s - 1}{CSM}_{rc}$$</span></td>
+    </tr>
+    <tr>
+        <td><strong>Vertical Sum Matrix (VSM):</strong></td>
+        <td>&nbsp;</td>
+        <td><span class="math display">$${VSM}_{c} = \sum_{r = 0}^{s - 1}{CSM}_{r,c}$$</span></td>
+    </tr>
+    <tr>
+        <td><p><strong>Diagonal Sum Matrix (DSM):</strong></p></td>
+        <td>&nbsp;</td>
+        <td><span class="math display">$${DSM}_{r} = \sum_{c = 0}^{s - 1}{CSM_{r,(r + c)\ mod\ s}}$$</span></td>
+    </tr>
+    <tr>
+        <td><strong>Anti-Diagonal Sum Matrix (XSM):</strong></td>
+        <td>&nbsp;</td>
+        <td><span class="math display">$${XSM}_{r} = \sum_{c = 0}^{s - 1}{CSM_{r,(s - r + i - 1)mod\ s}}$$</span></td>
+    </tr>
+</table>
+<br/>
+<p>These projections provide invariant structural representations of the CSM data. Their mutual redundancy allows
+    reversibility under constraints discussed in later sections. The astute reader will see a non-trivial risk of
+    collision in these sums alone. This risk is mitigated by additional steps, covered below.
+</p>
+<br/>
+<h3 id="cross-sum-information-density">Cross-Sum Information Density</h3>
+<br/>
+<p>
+    Given the four (4) cross-sums, we can compute the information density of the cross-sum representation of CSM as—
+</p>
+<p>
+    <span class="math display">$$
+        Cross-Sum Bits = 4 \cdot s \cdot b, where b = ⌈log_{2}(s)⌉, s = 511
+    $$</span>
+</p>
+<p>
+    <span class="math display">$$
+        4 \dot s \cdot ⌈log_{2}(s)⌉ = 4 \cdot 511 \cdot 9
+    $$</span>
+</p>
+<p>
+    <span class="math display">$$
+        4 \cdot 511 \cdot 9
+    $$</span>
+</p>
+<p>
+    <span class="math display">$$
+        18,396\ bits
+    $$</span>
+</p>
+<p>
+    where <span>$s$</span> is the length of any side of <span>$CSM$</span> and <span>$b$</span> represents the number
+    of bits needed to represent any cross-sum in the <span>$LSM$</span>, <span>$VSM$</span>, <span>$DSM$</span>, or
+    <span>$XSM$</span> matrices.
+</p>
+<hr/>
+<h2 id="cryptographic-hash-chain" class="center">Cryptographic Hash Chain</h2>
+<br/>
+<p>
+    To mitigate the risk of collision in a pure cross-sum environment, CRSCE adds a cryptographic hash chain
+    (<span>$LH$</span>) computed as follows:
+</p>
+<p>
+    <span class="math display">$$
+        \begin{Bmatrix}
+        N\ =\ Sha256(nonce) \\
+        LH_{0}\ =\ Sha256\left( concat\left(N,\ CSM_{0,\ 0},\ CSM_{0,\ 1}\ ,...,\ CSM_{0,\ s\ -\ 1}\ \right) \right) \\
+        LH_{1}\ =\ Sha256(Concat(LH_{0},CSM_{1,\ 0},\ CSM_{1,\ 1}\ ,...,CSM_{1,\ s - 1})) \\
+        \ldots \\
+        LH_{r}\ =\ Sha256(Concat(LH_{r\ -\ 1},\ CSM_{r,\ 0},\ CSM_{r,\ 1}\ ,...,\ CSM_{r,\ s\ -\ 1}))
+        \end{Bmatrix},\ where\ r\ = \{ 1,\ldots,\ s\ -\ 1\}
+    $$</span>
+</p>
+<p>
+    and where the start of the hash chain is some pre-shared nonce<a href="#fn1" class="footnote-ref" id="fnref1"
+                                                                     role="doc-noteref">$^{1}$</a>
+    known to all users of the algorithm. This lateral hash (LH) matrix provides a means of performing row-by-row
+    collision detection and verification. The cryptographic hash chain method used to derive the LH matrix provides a
+    collision detection mechanism for the entire CSM solution, while also further reducing the probability of collision.
+</p>
+<br/>
+<h3 id="lateral-hash-information-density">Lateral Hash Information Density</h3>
+<br/>
+<p>
+    Since each row of CSM must have a hash in the Lateral Hash (LH) matrix, LH must be of s rows itself. Further,
+    because LH is composed of s-number of SHA-256 hashes, and because the output size of the SHA-256 algorithm is 256
+    bits, we can calculate the number of bits in LH as—
+    <span class="math display">$$
+        Hash\ bits\ =\ 256\ \cdot\ s\ =\ 256\ \cdot\ 512\ =\ 131,072\ bits
+    $$</span>
+</p>
+<br/>
+<h3 id="collisions-in-sha-256">Collisions in SHA-256</h3>
+<br/>
+<p>
+    While SHA-256 remains a secure hash function as of 2025, its finite output space (256 bits) necessarily invokes the
+    pigeonhole principle, particularly when compressing fixed-size binary matrices such as the 512-bit rows in CRSCE's
+    Cross-Sum Matrix (CSM). Each row is effectively a unique arrangement of 512 bits; however, these configurations must
+    map to one of <span class="math inline">$2^{256}$</span>possible SHA-256 outputs. Though the cryptographic design
+    of SHA-256 renders practical collision discovery computationally infeasible (Dang, 2012), the mathematical certainty
+    of potential collisions remains. To mitigate this theoretical risk and enhance verification strength, CRSCE
+    implements a chained hash construction. Specifically, each row hash<span class="math inline">$LH_i$</span>
+    is derived as:<span class="math display">$$
+
+        \begin{Bmatrix}
+        N = Sha256(nonce) \\
+        LH_{0} = Sha256\left( concat\left( N,CSM_{0,0}\ ,CSM_{0,1},\ \dots,\ CSM_{0,s - 1} \right) \right) \\
+        LH_{1} = Sha256(Concat(LH_{0},\ CSM_{1,0}\ ,CSM_{1,1},\ \dots,\ CSM_{1,s -1})) \\
+        \ldots \\
+        LH_{r} = Sha256(Concat(LH_{r - 1},CSM_{r,0}\ ,CSM_{r,1}\ ,...,CSM_{r,s -1}))
+        \end{Bmatrix},\ where\ r = \{ 1,\ldots,\ s - 1\}
+        $$
+
+    </span>
+</p>
+<p>
+    This chaining mechanism ensures that each row’s hash is not only bound to its own content but also transitively tied
+    to all preceding rows, reducing the risk of undetected collision-based tampering. By coupling the structural
+    integrity of the CSM with cryptographic hash dependencies, CRSCE reinforces the fidelity of decompression and
+    integrity verification, even in scenarios where theoretical hash collisions may exist.
+</p>
+<hr/>
+<h2 id="final-output-and-bit-packing" class="center">Final Output and Bit-Packing</h2>
+<br/>
+<p>
+    Once the cross-sums matrices (<span>$LSM$</span>, <span>$VSM$</span>, <span>$DSM$</span>, and <span>$XSM$</span>)
+    have been calculated and the lateral hash (<span>$LH$</span>) matrix has been computed, the compressed output must
+    be serialized into a packed bit stream. For optimal speed, the output is laid out as <span>LH</span>,
+    <span>LSM</span>, <span>VSM</span>, <span>DSM</span>, <span>XSM</span>, since the <span>LH</span> matrix is
+    byte-aligned and easily serialized. The remaining cross-sums, however, must be packed through a slower process.
+</p>
+<p>
+    Because the value <span>$b$</span> is not byte-aligned (<span>$b=9$</span> for <span>$s=512$</span>), the
+    compressor must read bits from the cross-sum matrices then push the resulting bits to the output buffer. This
+    incurs a non-trivial amount of processing time. However, this can be parallelized to some extent by interleaving
+    the cross-sum matrix elements as follows:<span>$$
+        O=\{L_0,\ V_0,\ D_0,\ X_0,\ L_1,\ V_1,\ D_1,\ X_1,\ \ldots,\ L_{s-1},\ V_{s-1},\ D_{s-1},\ X_{s-1}\}
+    $$</span>
+</p>
+<p>
+    where <span class="math inline">$i$</span> is the <span>$i^{th}$</span> bit in the serialized sequence. This
+    interleaving means four bit-reader threads can execute concurrently to pop bits from their respective cross-sum
+    matrix elements then push them to a serialization queue for their respective cross-sum. A fifth independent thread
+    can read from these queues in round-robin order (LSM, VSM, DSM, XSM) to pop one bit at a time from each queue then
+    write it to the output queue (O). What results is an bit stream of packed cross-sum values regardless of
+    the b-value written to the output file in less time than if the cross-sums were packed sequentially.
+</p>
+<hr/>
+<h2 id="compression-rates-cr" class="center">Compression Rates (<span>$C_{r}$</span>)</h2>
+<br/>
+<p>
+    Let the compression rate (<span>$C_{r}$</span>) be the ratio of compressed output to uncompressed input:
+    <span class="math display">$$
+        
+            C_{r} = 1 - \frac{O}{I}
+        
+    $$</span>Given the above, we can define <span class="math inline">O</span> as the total compressed output
+    size, calculated as—<span class="math display">
+    $$
+        O=4 \cdot s \cdot b + 256 \cdot s
+    $$
+    </span>This is the sum of our cross-sum information density and lateral hash information density, as defined
+    earlier. Next, we can assume our input size (I) is calculated as—
+    <span class="math display">
+        $$
+            I \approx s^{2}
+        $$
+    </span>where we use the CSM size (s) to determine the input size in order to account for any padding which may be
+    necessary to make the raw input fit the square CSM matrix. From these two terms, we can calculate $C_{r}$ as—
+    <span class="math display">
+        $$
+            C_{r} = 1 - \frac{O}{I} = 1 - \frac{4sb+ 256s}{s^{2}} = 1 - \frac{4b + 256}{s}
+        $$
+    </span>
+</p>
+<p>
+    Plugging in s=512, from which we determine that b=9, we find—
+    <span class="math display">
+        $$
+            C_{r} = 1 - \frac{O}{I} = 1 - \frac{4 \bullet 9 + 256}{512} = 1 - \frac{36 + 256}{512} = 1 - \frac{73}{128}
+            \approx 0.4296875\ (42.97\%)
+        $$
+    </span>
+</p>
+<p>
+    This is the empirical benchmark from the CRSCE implementation. A study of this compression rate would show that as
+    the value of <span>$s$</span> increases, the compression rate <span>$C_{r}$</span> also increases. The following
+    table projects the compression rates for various block size (<span>$s$</span>) values:
+</p>
+<table style="width:77%;">
+    <colgroup>
+        <col style="width: 17%"/>
+        <col style="width: 6%"/>
+        <col style="width: 25%"/>
+        <col style="width: 28%"/>
+    </colgroup>
+    <thead>
+    <tr>
+        <th>Block Size (s)</th>
+        <th>b</th>
+        <th>Total Data Size ($s^{2}$)</th>
+        <th>Compression Rate ($C_{r}$)</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>256<a href="#fn2" class="footnote-ref" id="fnref2"
+                  role="doc-noteref">$^{2}$</a></td>
+        <td>8</td>
+        <td>$256^{2}$=8KB</td>
+        <td>-14.5%</td>
+    </tr>
+    <tr>
+        <td>512</td>
+        <td>9</td>
+        <td>$512^{2}$=32KB</td>
+        <td>42.97%</td>
+    </tr>
+    <tr>
+        <td>1024</td>
+        <td>10</td>
+        <td>$1024^{2}$=128KB</td>
+        <td>73.12%</td>
+    </tr>
+    <tr>
+        <td>2048</td>
+        <td>11</td>
+        <td>$2048^{2}$=512KB</td>
+        <td>90.54%</td>
+    </tr>
+    </tbody>
+</table>
+<br/>
+<p>
+    As demonstrated, <span>$s < 512$</span> is not feasible and will result in data inflation rather than data
+    compression. However, as the compression rate increases, the computational complexity required for decompression
+    also increases, as does the risk of collision. For the purposes of this paper, CRSCE is limited to
+    <span>$s=512$</span>.
+</p>
+<p><em>
+    NOTE: We explicitly avoided any compressed file header or other overhead in our compression rate calculation as this
+    is an implementation detail reserved for the end user. Most use cases will need to write header information such as
+    the value of <span>$s$</span>, the name of the compressed data set, and other metadata. But there are other use
+    cases where the implementing user may make these values constant. To facilitate a more general use of CRSCE, the
+    compression rate excludes this overhead.
+</em></p>
+<hr/>
+<h2 id="proof-of-losslessness-sketch" class="center">Proof of Losslessness (Sketch)</h2>
+<br/>
+<p>
+    Let LSM, VSM, DSM, and XSM be the four cross-sum vectors and LH the lateral hash chain, as described earlier.
+    Because SHA-256 is preimage-resistant and collision-resistant (Dang, 2012), the probability of an alternate
+    <span class="math inline">$A^′≠A$</span> matching <span>$LH$</span> is negligible. Therefore,
+    <span class="math inline">$(LSM,VSM,DSM,XSM,LH) \implies A$</span> is uniquely decodable with probability
+    <span class="math inline">$p > 0.99$</span>. See Merkle-Damgård construction proof (Merkle, 1989).
+</p>
+<hr/>
+<h2 id="performance-and-scalability" class="center">Performance and Scalability</h2>
+<br/>
+<p>
+    CRSCE performs all computations in linear time <span class="math inline">$O(s^{2})$</span>, with parallelizable
+    phases:
+</p>
+<ul>
+    <li>Cross-sum vectors: <span class="math inline">$O(s)$</span> tasks over <span>$s$</span> elements</li>
+    <li>Hash chain: sequential without parallelization</li>
+</ul>
+<p>By fixing s=512, CRSCE supports consistent performance metrics across
+    all datasets.
+</p>
+<hr/>
+<h2 id="comparison-to-prior-art-compression" class="center">Comparison to Prior Art: Compression</h2>
+<br/>
+<p>
+    The following table illustrates the comparative performance of CRSCE to conventional compression:
+</p>
+<table style="width:87%;">
+    <caption><p>Table 1 - Sources: Salomon &amp; Motta (2010), Sayood
+        (2018)</p></caption>
+    <colgroup>
+        <col style="width: 14%"/>
+        <col style="width: 27%"/>
+        <col style="width: 20%"/>
+        <col style="width: 25%"/>
+    </colgroup>
+    <tbody>
+    <tr>
+        <td>Algorithm</td>
+        <td style="text-align: center;">Average Binary Compression</td>
+        <td style="text-align: center;">Predictability</td>
+        <td style="text-align: center;">Complexity</td>
+    </tr>
+    <tr>
+        <td>DEFLATE</td>
+        <td style="text-align: center;">&lt;5%</td>
+        <td style="text-align: center;">✗</td>
+        <td style="text-align: center;"><span
+                class="math display">O(n log n)</span></td>
+    </tr>
+    <tr>
+        <td>LZMA</td>
+        <td style="text-align: center;"><p>10-30%</p>
+            <p>(content-dependent)</p></td>
+        <td style="text-align: center;">✗</td>
+        <td style="text-align: center;"><span
+                class="math display">O(n)</span></td>
+    </tr>
+    <tr>
+        <td>BWT+RLE</td>
+        <td style="text-align: center;">&lt;20%</td>
+        <td style="text-align: center;">✗</td>
+        <td style="text-align: center;"><span
+                class="math display">O(n)</span></td>
+    </tr>
+    <tr>
+        <td>CRSCE</td>
+        <td style="text-align: center;">42.97% (Fixed)</td>
+        <td style="text-align: center;"><strong>✓</strong></td>
+        <td style="text-align: center;"><span
+                class="math display">O(n)</span></td>
+    </tr>
+    </tbody>
+</table>
+<br/>
+<h2 id="decompression" class="center">Decompression</h2>
+<p>CRSCE decompression is not byte-wise inflation; it is a constrained
+    reconstruction problem. Given the stored directional cross-sum projections
+    (LSM, VSM, DSM, XSM) and a SHA-256 hash chain, the task is to recover the
+    original s×s binary matrix that satisfies all projection
+    constraints and verifies against the hash chain. In practice, this aligns
+    with discrete (binary) tomography: recovering a binary matrix from a small
+    set of line-sum constraints.</p>
+<p>
+    To make this reconstruction practical at scale, CRSCE uses the
+    Game of Beliefs Protocol (GOBP) as the coordination layer for
+    distributed probabilistic inference. GOBP treats decompression as
+    inference on a factor graph whose variables are matrix bits and whose
+    factors encode the line-sum constraints; it standardizes belief messages,
+    aggregation, and verification. Hashes are used for verification and audit,
+    not as local inference factors. See: <a
+        href="/2025/12/15/the-game-of-beliefs-protocol-gobp-a-message-passing-mechanism-for-crsce-decompression/">GOBP</a>.
+</p>
+<hr/>
+<h2 id="decompression-overview" class="center">Decompression Overview</h2>
+<br/>
+<p>Following GOBP, decompression proceeds as an iterative pipeline:</p>
+<ol type="1">
+    <li><strong>Factorization</strong>: build a factor graph that captures the projection constraints over all unknown
+        bits.
+    </li>
+    <li><strong>Infer</strong>: run loopy belief propagation (LBP) to obtain approximate marginals over bits under a
+        soft constraint model.
+    </li>
+    <li><strong>Decimate / Branch</strong>: fix high-confidence bits or structured subsets; use branching when needed to
+        explore alternatives.
+    </li>
+    <li><strong>Propose</strong>: assemble a full candidate solution when constraints appear satisfiable and uncertainty
+        is low.
+    </li>
+    <li><strong>Verify</strong>: check all projections and validate the SHA-256 hash-chain target; accept if verified.
+    </li>
+    <li><strong>Backtrack / Restart</strong>: if verification fails, use the failure as information (e.g., adjust
+        priors, perturb messages) and continue.
+    </li>
+</ol>
+<p>Termination occurs when a candidate passes verification. Non-convergence
+    in LBP is handled by damping, restarts, and decimation schedules.</p>
+<hr/>
+<h2 id="deterministic-elimination-de" class="center">Inference and Decimation</h2>
+<br/>
+<p>Where possible, exact constraint propagation fixes bits deterministically
+    (for example, when a line-sum is 0 or s). The central mechanism,
+    however, is LBP over the factor graph, followed by decimation: variables
+    with confident marginals are fixed and removed, and inference continues on
+    the reduced instance until a verifiable candidate emerges or the schedule
+    restarts.</p>
+<hr/>
+<h2 id="game-of-beliefs-protocol-gobp" class="center">Game of Beliefs Protocol
+    (GOBP)</h2>
+<br/>
+<p>GOBP coordinates probabilistic inference on the CRSCE factor graph and
+    standardizes how solvers exchange information:</p>
+<ul>
+    <li><strong>Message-passing</strong>: belief and edge messages compatible with
+        LBP; rounds include iteration index, damping, and normalization
+        metadata.
+    </li>
+    <li><strong>Aggregation</strong>: principled pooling (e.g., weighted
+        product-of-experts/log opinion pool) to combine multiple solvers’ beliefs
+        into consensus inputs for the next round.
+    </li>
+    <li><strong>Incentives</strong>: strictly proper scoring rules evaluate prior
+        probabilistic claims once a reconstruction is verified, aligning truthful
+        reporting with long-run influence or reward.
+    </li>
+    <li><strong>Verification</strong>: projection checks and the SHA-256 hash-chain
+        target are used to accept or reject candidates; hashes are audit and
+        verification tools, not local factors for inference.
+    </li>
+</ul>
+<hr/>
+<h2 id="computational-complexity-analysis" class="center">Computational Complexity
+    Analysis</h2>
+<br/>
+<h3 id="deterministic-elimination-de-1">Deterministic Elimination (DE)</h3>
+<br/>
+<p>
+    Let <span class="math inline">s</span> be the dimension of the Cross-Sum Matrix (CSM), fixed at <span
+        class="math inline">s = 512</span> throughout our implementation.
+</p>
+<p>
+    DE iteratively resolves matrix bits using cross-sum rules and hash-based pattern resolution. Each of the four
+    cross-sum vectors (LSM, <span class="math inline">VSM,  DSM,  XSM)</span>contains <span class="math inline">s</span>
+    entries. Each entry potentially involves scanning up to ss bits, and updates propagate as elements are solved and
+    locked. This gives:
+</p>
+<p>DE time complexity: <span
+        class="math inline">𝒪(s$^{2}$)</span> per pass, up to <span
+        class="math inline">𝒪(s)</span> passes⇒ <span
+        class="math inline">𝒪(s$^{3}$)</span>.</p>
+<p>In practice, the number of effective passes is reduced by the locking
+    mechanism, which prevents reprocessing of resolved rows/columns.</p>
+
+<p>The DE phase also attempts hash-based resolution for known patterns,
+    requiring. <span class="math inline">𝒪(s)</span> SHA-256 hashes
+    (one per row), each of cost <span
+            class="math inline">𝒪(s)</span>, thus also <span
+            class="math inline">𝒪(s$^{2}$)</span>.</p>
+<br/>
+<h3 id="game-of-beliefs-protocol-gobp-1">Game of Beliefs Protocol (GOBP)</h3>
+<br/>
+<p>
+    Post-initial constraint propagation, remaining bits are handled using probabilistic inference and decimation. GOBP
+    consists of:
+</p>
+<ol type="1">
+    <li>
+        Factor Graph Initialization: Build a bipartite graph with up to <span class="math inline">𝒪(s$^{2}$)</span>
+        variable nodes and <span class="math inline">4s</span> factor nodes.
+    </li>
+    <li>
+        Loopy Belief Propagation (LBP): For each edge (up to 4<span class="math inline">s$^{2}$</span>), messages are
+        exchanged for <span class="math inline">T</span> iterations:
+    </li>
+</ol>
+<p>
+    <span class="math inline">$𝒪(Ts^{2})$</span>, assuming <span class="math inline">T</span> is bounded.
+</p>
+<p>
+    Total GOBP per-block work is dominated by LBP message updates and occasional decimation/branching overhead;
+    asymptotically this is <span class="math inline">$𝒪(Ts^{2})$</span> under a fixed iteration budget.
+</p>
+<h3 id="combined-complexity">Combined Complexity</h3>
+<p>
+    Combining both stages, we get a total decompression complexity per block of <span class="math inline">
+    $𝒪(s^{3})$</span>. This upper bound is consistent with empirical convergence behavior, particularly for
+    high-entropy inputs.
+</p>
+<hr/>
+<h2 id="memory-complexity-analysis" class="center">Memory Complexity Analysis</h2>
+<br/>
+<p>
+    Each decompression block requires:
+<ul>
+    <li>CSM matrix:
+        <p><span class="math display">$$
+            \begin{aligned}
+            s^{2}\ bits=261,121\ bits \\
+            \\
+            \frac{261,121\ bits}{8\ bits\ per\ byte} ≈\ 32,640\ bytes \\
+            \\
+            \frac{32,640\ bytes}{1,024\ bytes\ per\ KB} ≈\ 32KB \\
+            \end{aligned}
+        $$</span></p>
+    </li>
+    <li>Cross-sum vectors:
+        <p><span class="math display">$$
+            \begin{aligned}
+            4 \times s \times b\ bits \\
+            \\
+            b = ⌈$log_{2}$(s)⌉ = 9 \\
+            \\
+            4 \times 512 \times 9 = 18,396\ bits \\
+            \\
+            \frac{18,396\ bits}{8\ bits\ per\ byte}\ ≈\ 2,300\ bytes \\
+            \end{aligned}
+        $$</span></p>
+    </li>
+    <li>LHASH matrix:
+        <p><span class="math display">$$
+            \begin{aligned}
+            256\ bits\ per\ hash\ \times\ s\ rows\ per\ LHASH\ =\ 256s\ bits \\
+            \\
+            256\ bits\times\ 511\ rows\ =\ 130,816\ bits \\
+            \\
+            \frac{130,816\ bits}{8\ bits\ per\ byte}\ ≈\ 16,352bytes \\
+            \\
+            \frac{16,352\ bytes}{1,024\ Bytes\ per\ KB}\ ≈\ 16KB \\
+            \end{aligned}
+        $$</span></p>
+    </li>
+    <li>Belief matrix:
+        <p><span class="math display">$$
+            \begin{aligned}
+            s^{2}\times\ 4\ bytes\ per\ 32\ −\ bit\ float\ =\ 511^{2}\ bytes \\
+            \\
+            511^{2}\ bytes\ =\ 261,121\ bytes \\
+            \\
+            \frac{261,121\ bytes}{1.024\ bytes\ per\ KB}\ ≈\ 256KB \\
+            \end{aligned}
+        $$</span></p>
+    </li>
+    <li>Total approximate memory per block:
+        <p><span class="math display">$$
+            \begin{aligned}
+            32KB\ +\ 2300B\ +\ 16KB\ +\ 256KB\ =\ 313,596\ Bytes\ per\ block \\
+            \\
+            \frac{313,596\ Bytes\ per\ block}{1,024\ bytes\ per\ KB}\ ≈\ 306KB \\
+            \end{aligned}
+        $$</span></p>
+    </li>
+</ul>
+<em>Note:This assumes a fixed block size <span>$s$</span>.</em>
+<hr/>
+<h2 id="performance-and-gpu-acceleration" class="center">Performance and GPU Acceleration</h2>
+<br/>
+<p>
+    CRSCE decompression relies on iterative message passing and constraint checks that parallelize well. GOBP is
+    agnostic to hardware; it standardizes messages and rounds so that implementations can target CPU, GPU, or
+    distributed clusters as appropriate.
+</p>
+<hr/>
+<h2 class="center"> Comparative Analysis: CRSCE vs Traditional Compression Algorithms</h2>
+<br/>
+<p>
+    In this section we compare the Cross Sums Compression and Expansion (CRSCE) algorithm alongside traditional
+    compression algorithms. The analysis which follows is purely theoretical. It is derived from designs, published
+    computational complexity, and the structural properties of the CRSCE and comparative algorithms. No empirical
+    runtime or throughput data is presented in this algorithm. All performance metrics such as time and memory
+    complexity are analyzed under worst-case assumptions using formal algorithmic models. Readers should treat this
+    comparison as a high-confidence analytical projection, not a benchmark.
+</p>
+<p>
+    This projection compares the CRSCE algorithm to DEFLATE (used by gzip), LZMA, and BWT+RLE. The following compares
+    these methods across several dimensions relevant to high-entropy, verifiable, and scalable compression workflows.
+    However, it should be worth saying that CRSCE is fundamentally different from traditional algorithms. Nonetheless,
+    there are no comparable algorithms with the novel approach to data compression which could provide a closer
+    comparison.
+</p>
+<br/>
+<h3 id="algorithmic-characteristics">Algorithmic Characteristics</h3>
+<br/>
+<p>
+    The following table presents a theoretical comparison of CRSCE and traditional compression algorithms to highlight
+    the structural and computational distinctions of CRSCE. Of particular importance is CRSCE’s strong losslessness
+    guarantee and its independence from source entropy. Unlike conventional algorithms, which stem from Shannon’s
+    foundational 1948 work that ties compression efficiency to redundancy and statistical repetition in data (Shannon,
+    1948), CRSCE derives its effectiveness from deterministic structural properties such as cross-sums and cryptographic
+    hash constraints, CRSCE derives its abilities from bit sums.
+</p>
+<br/>
+<table>
+    <colgroup>
+        <col style="width: 23%"/>
+        <col style="width: 19%"/>
+        <col style="width: 20%"/>
+        <col style="width: 15%"/>
+        <col style="width: 20%"/>
+    </colgroup>
+    <thead>
+    <tr>
+        <th>Feature</th>
+        <th>CRSCE</th>
+        <th>DEFLATE (gzip)</th>
+        <th>LZMA</th>
+        <th>BWT + RLE</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>Compression Strategy</td>
+        <td>Structural + Hashing</td>
+        <td>LZ77 + Huffman</td>
+        <td>LZMA (LZ77 + Range coding)</td>
+        <td>Transform + Run-Length</td>
+    </tr>
+    <tr>
+        <td>Predictable Output Size</td>
+        <td>✓ (based on block size)</td>
+        <td>✗ (depends on input)</td>
+        <td>✗</td>
+        <td>✗</td>
+    </tr>
+    <tr>
+        <td>Content-Independence</td>
+        <td>✓</td>
+        <td>✗</td>
+        <td>✗</td>
+        <td>✗</td>
+    </tr>
+    <tr>
+        <td>Verifiability via Hash</td>
+        <td>✓ (cryptographic LHASH)</td>
+        <td>✗ (optional checksums only)</td>
+        <td>✗ (optional CRC)</td>
+        <td>✗ (no intrinsic hash)</td>
+    </tr>
+    <tr>
+        <td>Losslessness Guarantee</td>
+        <td>Proven via SHA-256 + sums</td>
+        <td colspan="3">Proven but entropy-bound</td>
+    </tr>
+    </tbody>
+</table>
+<p>
+    CRSCE has predictable output size regardless of the input. Knowing only the input message size or block size, the
+    compression rate can be estimated, providing valuable capabilities to the end user. Traditional algorithms lack this
+    ability. Further, larger and larger block sizes increase the compression rates of the CRSCE algorithm, where
+    traditional algorithms only increase their rates if the entropy of the input increases.
+</p>
+<br/>
+<h3 id="computational-complexity">Computational Complexity</h3>
+<br/>
+<p>The trade-off of CRSCE guaranteed, predictable compression rates and entropy-independence is a greater computational
+    complexity, especially when it comes to decompression. The complexity of decompression is the primary reason the
+    algorithm has taken more than thirty years to develop. In the following table, we see the computational complexity,
+    illustrated:
+</p>
+<table style="width:100%;">
+    <colgroup>
+        <col style="width: 21%"/>
+        <col style="width: 23%"/>
+        <col style="width: 21%"/>
+        <col style="width: 16%"/>
+        <col style="width: 17%"/>
+    </colgroup>
+    <thead>
+    <tr>
+        <th>Metric</th>
+        <th>CRSCE Decompression</th>
+        <th>DEFLATE</th>
+        <th>LZMA</th>
+        <th>BWT + RLE</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><p>Time Complexity</p>
+            <p>(Worst Case)</p></td>
+        <td><span class="math display">𝒪(s$^{3}$)</span></td>
+        <td><span class="math display">𝒪(n$^{2}$)</span></td>
+        <td><span
+                class="math display">𝒪(n log n)</span></td>
+        <td><span
+                class="math display">𝒪(n log n)</span></td>
+    </tr>
+    <tr>
+        <td><p>Time Complexity</p>
+            <p>(Best Case)</p></td>
+        <td><span class="math display">𝒪(s$^{2}$)</span></td>
+        <td><span class="math display">𝒪(n)</span></td>
+        <td><span class="math display">𝒪(n)</span></td>
+        <td><span class="math display">𝒪(n)</span></td>
+    </tr>
+    <tr>
+        <td>Memory Complexity</td>
+        <td><span class="math inline">𝒪(s$^{2}$)</span>
+            (fixed)
+        </td>
+        <td><p><span class="math display">𝒪(𝓌)</span></p>
+            <p><span
+                    class="math display">𝓌 = window</span></p>
+        </td>
+        <td><span class="math display">𝒪(n)</span></td>
+        <td><span class="math display">𝒪(n)</span></td>
+    </tr>
+    <tr>
+        <td>Entropy Sensitivity</td>
+        <td>None</td>
+        <td>High</td>
+        <td>High</td>
+        <td>High</td>
+    </tr>
+    </tbody>
+</table>
+<br/>
+<p>
+    The comparative performance of CRSCE to other algorithms is significant. Greater speeds can be achieved using
+    traditional compression, even when CRSCE decompression is coordinated via GOBP.
+</p>
+<br/>
+<h3 id="gpu-suitability">GPU Suitability</h3>
+<br/>
+<p>
+    To improve decompression speeds, CRSCE is designed to use Graphics Processing Units (GPUs). The GPU allows massive
+    parallel math operations needed for GOBP. We hope that this will allow CRSCE to become suitable for mainstream. We
+    believe that this will also create the potential for quantum computing applications. With this future in mind, we
+    evaluate GPU Suitability for all of our algorithms in the following table:
+</p>
+<table style="width:100%;">
+    <colgroup>
+        <col style="width: 18%"/>
+        <col style="width: 19%"/>
+        <col style="width: 20%"/>
+        <col style="width: 20%"/>
+        <col style="width: 20%"/>
+    </colgroup>
+    <thead>
+    <tr>
+        <th>Feature</th>
+        <th>CRSCE</th>
+        <th>DEFLATE</th>
+        <th>LZMA</th>
+        <th>BWT + RLE</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>GPU Parallelism</td>
+        <td>Excellent (SIMD/LBP/graph-parallel)</td>
+        <td>Poor</td>
+        <td>Poor</td>
+        <td>Moderate</td>
+    </tr>
+    <tr>
+        <td>Thread Decomposition</td>
+        <td>Graph/message factorized</td>
+        <td>Sequential bitstream</td>
+        <td>Sequential</td>
+        <td>Transform parallelism</td>
+    </tr>
+    <tr>
+        <td>Suitable for Real-time</td>
+        <td>✗ (bounded by GOBP convergence)</td>
+        <td>✓</td>
+        <td>✓</td>
+        <td>✓</td>
+    </tr>
+    </tbody>
+</table>
+<br/>
+<h3 id="summary-of-trade-offs">Summary of Trade-offs</h3>
+<br/>
+<ul>
+    <li><strong>CRSCE</strong> performs predictably regardless of input signal entropy.</li>
+    <li><strong>DEFLATE and LZMA</strong> remain faster and more general-purpose for low-entropy or real-time
+        applications.
+    </li>
+</ul>
+<hr/>
+<h2 class="center">Appendix A: CSM-to-Cross-Sum Coordinate Translation</h2>
+<br/>
+<p>
+    As a two-dimensional matrix, CSM elements are addressed by row, column ordered pair coordinates. However, the CSM
+    coordinates must be translated to one-dimensional coordinate systems for the cross-sums matrices. For simple
+    cross-sums matrices like LSM and VSM, the translation is fairly simple. LSM addresses elements of CSM for a given
+    row (<span>$r$</span>) and any value of <span class="math inline">$c={0,…,s−1}$</span>. Likewise, VSM addresses
+    elements of CSM for a given column (c) and any value <span>$r={0,…,s−1}$</span>. But for the DSM and XSM matrices
+    the translation is more complex.
+</p>
+<hr/>
+<h2 id="references" class="center">References</h2>
+<br/>
+<p>
+    Dang, Q. (2012). Recommendation for applications using approved hash algorithms. NIST Special Publication 800-107.
+    https://doi.org/10.6028/nist.sp.800-107r1
+</p>
+<p>
+    Deutsch, P. (1996). DEFLATE Compressed Data Format Specification version 1.3. IETF RFC 1951.
+    https://www.ietf.org/rfc/rfc1951.txt
+</p>
+<p>
+    Huffman, D. A. (1952). A method for the construction of minimum-redundancy codes. Proceedings of the IRE, 40(9),
+    1098–1101. https://doi.org/10.1109/JRPROC.1952.273898
+</p>
+<p>
+    Merkle, R. C. (1989). One way hash functions and DES. In Advances in Cryptology—CRYPTO’89 (pp. 428–446).
+    Springer.
+</p>
+<p>
+    Salomon, D., &amp; Motta, G. (2010). Handbook of Data Compression. Springer.
+</p>
+<p>
+    Sayood, K. (2017). Introduction to Data Compression (5th ed.). Morgan Kaufmann.
+</p>
+<p>
+    Shannon, C. E. (1948). A mathematical theory of communication. Bell System Technical Journal, 27(3), 379–423.
+    https://doi.org/10.1002/j.1538-7305.1948.tb01338.x
+</p>
+<p>Stevens, M., Bursztein, E., Karpman, P., Albertini, A., &amp; Markov, Y. (2013). The first collision for full SHA-1.
+    In Advances in Cryptology – CRYPTO 2017 (pp. 570–596). Springer. https://doi.org/10.1007/978-3-319-63688-7_19
+</p>
+<p>Ziv, J., &amp; Lempel, A. (1977). A universal algorithm for sequential data compression. IEEE Transactions on
+    Information Theory, 23(3), 337–343.
+</p>
+<hr/>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+    <h2 class="center">Notes</h2>
+    <ol>
+        <li id="fn1"><p>The nonce is not secret, nor can it be. The nonce must
+            be known to allow hashes to be calculated during the collision detection
+            of the decompression process.<a href="#fnref1" class="footnote-back"
+                                            role="doc-backlink">↩︎</a></p></li>
+        <li id="fn2"><p>s=256 is an invalid s-value since it is lower than the
+            boundary 292, as established earlier. It is included in this table to
+            highlight how the algorithm will perform without this boundary.<a
+                    href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+    </ol>
+</section>
