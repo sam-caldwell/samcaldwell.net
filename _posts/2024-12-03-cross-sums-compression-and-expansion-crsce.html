@@ -118,7 +118,7 @@ math: true
     CRSCE follows little-endian conventions at the byte-stream level. Bytes are read sequentially from the data source.
     Each byte is serialized MSB-first into bits. For an input byte <span>$B$</span>, the emitted bit sequence is:
     $$
-    ((B>>7)\&1, (B>>6)\&1, \dots, (B>>0)\&1).
+    (\ (B\ \gg\ 7)\ \&\ 1,\ (B\ \gg\ 6)\ \&\ 1, \dots,\ (B\ \gg\ 0)\ \&\ 1\ ).
     $$
 </p>
 <h3>Mapping bits to CSM</h3>
@@ -250,18 +250,71 @@ math: true
 <p>
     Define:
     $$
-        N=SHA256(seedBytes)
+    N=SHA256(seedBytes)
     $$
     Then:
     $$
-        LH_0 = SHA256(N||RowBytes(0))
+    LH_0 = SHA256(N||RowBytes(0))
     $$
     and for $r\ ∈\ \{1,\dots,510\}$:
     $$
-        LH_r = SHA256(LH_{r-1}||RowBytes(r))
+    LH_r = SHA256(LH_{r-1}||RowBytes(r))
     $$
     The LH array stored in the CRSCE payload is:
     $$
-        LH[0,\dots,510].
+    LH[0,\dots,510].
     $$
+</p>
+<hr/>
+<h2 class="center">Block Payload Layout and Bit Packing</h2>
+<br/>
+<h3>Serialization order</h3>
+<br/>
+<p>
+    Within each block payload, fields MUST be serialized in this exact order:
+</p>
+<ol>
+    <li>$LH[0],LH[1],\dots,LH[510]$ (each 256 bits)</li>
+    <li>$LSM[0,\dots,510]$ (each 9 bits, MSB-first within the 9-bit field)</li>
+    <li>$VSM[0,\dots,510]$ (each 9 bits, MSB-first)</li>
+    <li>$DSM[0,\dots,510]$ (each 9 bits, MSB-first)</li>
+    <li>$XSM[0,\dots,510]$ (each 9 bits, MSB-first)</li>
+</ol>
+<p>
+    Array indices MUST be serialized in increasing order.
+</p>
+<br/>
+<h3>Cross-sum element bit order</h3>
+<br/>
+<p>
+    Let a cross-sum value $v\ ∈\ \{0,\dots,511\}$. Its serialized 9-bit representation MUST by emitted MSB-first:
+    $$
+    (v_8,\ v_7,\ \dots,\ v_0),
+    $$
+    where $v = \sum_{j=0}^{8}v_j2^j$.
+</p>
+<br/>
+<h3>Block payload size (bits and padding)</h3>
+<br/>
+<p>
+    The payload content size is:
+    $$
+    \underbrace{511 \times 256}_{LH}
+    \;+\;
+    \underbrace{4 \times 9 \times 511}_{\text{four cross-sum arrays}}
+    \;=\;
+    130{,}816 + 18{,}396
+    \;=\;
+    149{,}212~\text{bits}.
+    $$
+    To store payloads byte-aligned, the encoder MUST append exactly 4 zero padding bits at the end of the payload,
+    producing:
+    $$
+        149{,}216~\text{bits}
+    $$
+    or
+    $$
+        18{,}652~\text{bytes}.
+    $$
+    per block on disk.
 </p>
