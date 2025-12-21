@@ -5,6 +5,8 @@ IMAGE ?= sam-jekyll
 CONTAINER ?= sam-jekyll-dev
 SITE_PORT ?= 4000
 LIVERELOAD_PORT ?= 35729
+# Bind published ports to this host address (default: loopback only)
+BIND_ADDRESS ?= 127.0.0.1
 
 .PHONY: dev build stop new
 
@@ -13,10 +15,11 @@ build:
 
 dev: build
 	@echo "Starting Jekyll dev server on http://localhost:$(SITE_PORT) (livereload: $(LIVERELOAD_PORT))"
+	@echo "Binding ports to $(BIND_ADDRESS)"
 	@docker run --rm -it \
 		--name $(CONTAINER) \
-		-p $(SITE_PORT):4000 \
-		-p $(LIVERELOAD_PORT):35729 \
+		-p $(BIND_ADDRESS):$(SITE_PORT):4000 \
+		-p $(BIND_ADDRESS):$(LIVERELOAD_PORT):35729 \
 		-v "$(PWD)":/site \
 		$(IMAGE)
 

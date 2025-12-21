@@ -7,6 +7,7 @@ A simple Jekyll site for samcaldwell.net. Local development is containerized wit
 - Requirements: Docker, Make
 - Dev server: `make dev` then open `http://localhost:4000`
 - Stop container: `make stop`
+- Network binding: dev ports bind to `127.0.0.1` by default via `-p 127.0.0.1:HOST:CONTAINER` so the site is only reachable locally. To override (e.g., for LAN testing), run `BIND_ADDRESS=0.0.0.0 make dev`.
 
 ## Create a New Blog Post
 
