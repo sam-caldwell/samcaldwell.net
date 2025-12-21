@@ -310,11 +310,230 @@ math: true
     To store payloads byte-aligned, the encoder MUST append exactly 4 zero padding bits at the end of the payload,
     producing:
     $$
-        149{,}216~\text{bits}
+    149{,}216~\text{bits}
     $$
     or
     $$
-        18{,}652~\text{bytes}.
+    18{,}652~\text{bytes}.
     $$
     per block on disk.
 </p>
+<hr/>
+<h2 class="center">File Container Format</h2>
+<br/>
+<p>
+    All multi-byte integer fields in the header are little-endian
+</p>
+<br/>
+<h3>Header fields (fixed layout)</h3>
+<br/>
+<p>
+    The header MUST contain:
+</p>
+<ol>
+    <li><code>magic</code> (<code>4</code> bytes): ASCII <code>CRSC</code></li>
+    <li><code>version</code> (<code>uint16</code>): currently <code>1</code></li>
+    <li><code>header_bytes</code> (<code>uint16</code>): total header size in bytes</li>
+    <li><code>original_file_size_bytes</code> (<code>uint64</code>)</li>
+    <li><code>block_count</code> (<code>uint64</code>)</li>
+    <li><code>header_crc32</code> (<code>uint32</code>): CRC-32 computed over the preceding header bytes (from <code>magic</code>
+        through <code>block_count</code>)
+    </li>
+</ol>
+<p>
+    Thus, for version 1:
+    $$
+    header_bytes = 28.
+    $$
+</p>
+<br/>
+<h3>Block framing and random access</h3>
+<br/>
+<p>
+    Blocks are fixed-size. With:
+    $$
+    header\_bytes = 28
+    block\_bytes = 18,652
+    $$
+    the file offset to block $i$ (0-based) is:
+    $$
+    block\_offset = header\_bytes + i \times block\_bytes
+    $$
+</p>
+<hr/>
+<h2 class="center">Decoder Acceptance Criteria and Error Semantics</h2>
+<br/>
+<h3>Success Criteria</h3>
+<br/>
+<p>
+    A decoded block is valid if and only if the decoder produces a $512 \times 512$ CSM such that:
+</p>
+<ol>
+    <li>cross-sums match exactly for indices $0,\dots,510$ under the normative definition.</li>
+    <li>The LH chain recomputed from the decoded $CSM$ matches the stored $LH[0,\dots,510]$ exactly.</li>
+</ol>
+<br/>
+<h3>Failure criteria (fail-hard)</h3>
+<br/>
+<p>
+    If the decoder cannot produce a valid block that satisfies all acceptance criteria, it MUST:
+</p>
+<ul>
+    <li>stop decoding, and</li>
+    <li>return an ERROR</li>
+</ul>
+<p>
+    Partial-output or best-effort behavior is non-normative and MUST NOT be the default.
+</p>
+<hr/>
+<h2 class="center">Reference Pseudocode (Explanatory, Non-Normative)</h2>
+<br/>
+<h3>Encoding (per-block)</h3>
+<br/>
+<code>
+    ENCODE_BLOCK(bytes[32768]) -> payload_bits:<br/>
+    CSM = BuildCSM(bytes) // MSB-first per byte; row-major fill<br/>
+    for r in 0..510:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;LSM[r] = sum_{c=0..510} CSM[r,c]<br/>
+    for c in 0..510:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;VSM[c] = sum_{r=0..510} CSM[r,c]<br/>
+    for d in 0..510:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;DSM[d] = sum_{r=0..510} CSM[r,(d-r) mod 512]<br/>
+    for x in 0..510:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;XSM[x] = sum_{r=0..510} CSM[r,(r-x) mod 512]<br/>
+    <br/>
+    seedBytes = ASCII("RG9uYWxkVHJ1bXBJbXBlYWNoSW5jYXJjZXJhdGVIaXN0b3J5UmVtZW1iZXJz")<br/>
+    N = SHA256(seedBytes)<br/>
+    <br/>
+    RowBytes(r) = Pack512Bits(CSM[r,0..511]) // 64 bytes, MSB-first in each byte<br/>
+    LH[0] = SHA256( N || RowBytes(0) )<br/>
+    for r in 1..510:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;LH[r] = SHA256( LH[r-1] || RowBytes(r) )<br/>
+    <br/>
+    payload = SerializeBits(<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;LH[0..510] (256-bit each),<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;LSM[0..510] (9-bit MSB-first each),<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;VSM[0..510] (9-bit MSB-first each),<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;DSM[0..510] (9-bit MSB-first each),<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;XSM[0..510] (9-bit MSB-first each)<br/>
+    )<br/>
+    <br/>
+    append 4 zero bits<br/>
+    return payload<br/>
+</code>
+<br/>
+<h3>Decoding (accept/reject form)</h3>
+<br/>
+<code>
+    DECODE_BLOCK(payload_bits) -> CSM or ERROR:<br/>
+    parse LH[0..510], LSM[0..510], VSM[0..510], DSM[0..510], XSM[0..510]<br/>
+    ignore final 4 padding bits<br/>
+    <br/>
+    CSM = RECONSTRUCT_IMPLEMENTATION_DEFINED(LH, LSM, VSM, DSM, XSM)<br/>
+    if CSM == NONE:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;return ERROR<br/>
+    <br/>
+    if CrossSumsMatch(CSM, LSM, VSM, DSM, XSM) AND LHChainMatches(CSM, LH):<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;return CSM<br/>
+    else:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;return ERROR<br/>
+</code>
+<hr/>
+<h2 class="center">Conformance Test Vectors</h2>
+<br/>
+<h3>TV0: Empty File</h3>
+<br/>
+<ul>
+    <li>$original_file_size_bytes = 0$</li>
+    <li>$block_count = 0$</li>
+    <li>No blocks.</li>
+</ul>
+<br/>
+<h3>TV1: One full block of $0x00$</h3>
+<br/>
+<ul>
+    <li>Input: $32,768$ bytes of $0x00$</li>
+    <li>Expected: CSM all zeros.</li>
+    <li>Cross sums: all stored values $0$</li>
+    <li>$LH$: determined by the fixed seed and rows of 64 bytes $0x00$.</li>
+</ul>
+<br/>
+<h3>TV2: One full block of $0xFF$</h3>
+<br/>
+<ul>
+    <li>Input: $32,768$ bytes of $0xFF$</li>
+    <li>Expected: CSM all ones.</li>
+    <li>Cross sums (over indices $0..510$): all stored values $511$ (binary $111111111$).</li>
+    <li>LH: determined by the fixed seed and rows of 64 bytes 0x00.</li>
+</ul>
+<br/>
+<h3>TV3: One full block of $0xAA</h3>
+<br/>
+<ul>
+    <li>Input: $32,768$ bytes of 0xAA (binary $10101010$, MSB-first)</li>
+    <li>Expected: for all rows, $CSM[r,c] = 1 if c even$</li>
+    <li>Cross sums:
+        <ul>
+            <li>$LSM[r] = 256 for all r ∈ 0,...,510$</li>
+            <li>$VSM[c] = 256 for all c ∈ 0,...,510$</li>
+            <li>$DSM[d] = 256 for all d ∈ 0,...,510$</li>
+            <li>$XSM[x] = 256 for all x ∈ 0,...,510$</li>
+        </ul>
+    </li>
+</ul>
+<hr/>
+<h2 class="center">Security and Robustness Considerations</h2>
+<br/>
+<h3>Integrity and assumptions</h3>
+<br/>
+<p>
+    CRSCE relies on SHA-256 as a standardized cryptographic hash for integrity validation (NIST, 2015). A
+    successful decode requires exact LH chain verification, providing strong resistance against accidental
+    corruption and many classes of malicious modification, subject to standard assumptions about SHA-256
+    preimage and collision resistance.
+</p>
+<br/>
+<h3>No confidentiality</h3>
+<br/>
+<p>
+    CRSCE does not provide encryption and MUST NOT be interpreted as providing confidentiality. However, it MAY be used
+    with proper encryption to increase the strength of the cryptographic systems where separate keys are used for each
+    cross-sum/hash output for transmission on separate channels.
+</p>
+<br/>
+<h3>Defensive parsing</h3>
+<br/>
+<p>
+    Decoders MUST treat the input as untrusted. Implementations MUST validate header fields before allocation and MUST
+    bounds-check all reads and offsets to prevent memory safety failures.
+</p>
+<br/>
+<h3>Versioning and Forward Compatibility</h3>
+<br/>
+<p>
+    $version$ must be present.
+</p>
+<p>
+    Decoders MUST reject unknown versions and MUST NOT attempt heuristic decoding of unknown formats.
+</p>
+<br/>
+<h3>Project-Normative Sources and Relationship to Working Documents</h3>
+<br/>
+<p>
+    This specification canonizes and supersedes earlier internal drafts and working notes by fixing parameters and
+    eliminating recurrent ambiguity (e.g., the canonical index domain $0..510$ for stored vectors, fixed $s=512$, and
+    fixed $b = 9$). The reconstruction algorithm remains implementation-defined to permit experimentation and iteration
+    while maintaining deterministic acceptance conditions.
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<br/>
+<p>Herman, G. T., & Kuba, A. (Eds.). (1999). Discrete tomography: Foundations, algorithms, and applications.
+    Birkhäuser.</p>
+<p>Kschischang, F. R., Frey, B. J., & Loeliger, H.-A. (2001). Factor graphs and the sum-product algorithm. IEEE
+    Transactions on Information Theory, 47(2), 498–519. https://doi.org/10.1109/18.910572 University of Toronto
+    Communications</p>
+<p>National Institute of Standards and Technology. (2015). Secure Hash Standard (SHS) (FIPS PUB 180-4, Update 1). U.S.
+    Department of Commerce. https://csrc.nist.gov/pubs/fips/180-4/upd1/final NIST Computer Security Resource Center</p>
+<p>Pearl, J. (1988). Probabilistic reasoning in intelligent systems: Networks of plausible inference. Morgan Kaufmann.
+    ScienceDirect</p>
