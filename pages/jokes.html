@@ -2,32 +2,25 @@
 layout: page
 title: jokes
 description: A list of jokes collected here.
+permalink: /jokes/
 ---
 
 {% assign joke_pages = site.pages | where_exp: "p", "p.path contains 'jokes/'" %}
-{% assign jokes = joke_pages | sort: 'title' %}
+{% assign jokes = joke_pages | sort: 'date' | reverse %}
 
 {% if jokes and jokes.size > 0 %}
-<ul class="list-unstyled">
+<ul class="list-group">
   {% for j in jokes %}
-  <li class="mb-2">
+  <li class="list-group-item d-flex justify-content-between align-items-center">
     <a href="{{ j.url | relative_url }}">{{ j.title | default: j.name | default: j.url }}</a>
     {% if j.date %}
-      <span class="text-muted small">— {{ j.date | date: "%Y-%m-%d" }}</span>
-    {% endif %}
-    {% if j.description %}
-      <div class="text-muted small">{{ j.description }}</div>
+      <small class="text-muted">{{ j.date | date: "%b %d, %Y" }}</small>
     {% endif %}
   </li>
   {% endfor %}
   </ul>
 {% else %}
-<p>No jokes found yet. Add files under <code>jokes/</code> with front matter, for example:</p>
-<pre><code>---
-title: My First Joke
-description: A short quip.
----
-Why did the function cross the road? To return to the caller.
-</code></pre>
+<ul class="list-group">
+  <li class="list-group-item">No jokes yet.</li>
+  </ul>
 {% endif %}
-
