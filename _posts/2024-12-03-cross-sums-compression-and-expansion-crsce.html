@@ -11,13 +11,13 @@ math: true
 <br/>
 <p>
     Cross-Sums Compression and Expansion (CRSCE) is a block-structured binary representation that encodes a <span>
-    $512 \times 512$</span> bit Cross-Sum Matrix (CSM) through (i) four families of cyclic cross-sum constraints and
+    $511 \times 511$</span> bit Cross-Sum Matrix (CSM) through (i) four families of cyclic cross-sum constraints and
     (ii) a chained lateral hash array (LH) used as a deterministic verification oracle. The CRSCE format defines a
     fixed-size block payload, a fixed header, and strict verification criteria for decoding. Reconstruction
     (decompression) is defined only by its acceptance constraints—any internal solving strategy (e.g., deterministic
     elimination, loopy belief propagation, or Game of Beliefs Protocol message passing) is
     implementation-defined—provided the final candidate CSM satisfies the canonical cross-sum constraints and the LH
-    hash chain exactly. This document specifies the file format, bit ordering, cross-sum definitions, LH construction,
+    hash chain exactly. This document specifies the file format, bit-ordering, cross-sum definitions, LH construction,
     packing order, padding, random-access semantics, and conformance test vectors. It also provides explanatory context
     by relating CRSCE decompression to constrained reconstruction and message passing over factor graphs (Pearl, 1988;
     Kschischang et al., 2001) and to discrete tomography-style ambiguity management (Herman & Kuba, 1999). Cryptographic
@@ -30,7 +30,7 @@ math: true
 <h3 class="center">Conformance Language</h3>
 <br/>
 <p>
-    The key words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are to be interpreted as normative requirements.
+    The keywords MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are to be interpreted as normative requirements.
 </p>
 <br/>
 <h3>Primary objects</h3>
@@ -40,16 +40,14 @@ math: true
         Input stream: a sequence of bytes to be encoded.
     </li>
     <li>
-        Block: a contiguous segment of <span>$s^2$</span> bits (<span>$s==512$</span>), i.e. 32768 bytes, except that
-        the
-        final block may be padded with null bits to reach full block size.
+        Block: a contiguous segment of $s^2$ bits ($s=511$), i.e. $261,121$ bits, except
+        that the final block may be padded with null bits to reach full block size.
     </li>
     <li>
-        CSM: the Cross-Sum Matrix, a <span>$512 \times 512$</span> matrix of bits.
+        CSM: the Cross-Sum Matrix, a $511 \times 511$ matrix of bits.
     </li>
     <li>
-        Cross-sum vectors: <span>$LSM, VSM, DSM, XSM$</span>, each stored for indices <span>$0,...,510$</span> (length
-        511).
+        Cross-sum vectors: $LSM, VSM, DSM, XSM$, each stored for indices $0,...,510$ (length 511).
     </li>
     <li>LH array: the lateral hash chain values <span>$LH[0,...,510]$</span> (length 511), each a SHA-256 digest.</li>
 </ul>
@@ -79,8 +77,8 @@ math: true
 <h3>Fixed Matrix Size</h3>
 <br/>
 <p>
-    <span>$$s=512$$</span>
-    The CSM is a <span>$512 \times 512</span> bit matrix with row indices <span>$r ∈ \{0,\dots,511\}$</span> and column
+    <span>$$s=511$$</span>
+    The CSM is a <span>$511 \times 511</span> bit matrix with row indices <span>$r ∈ \{0,\dots,511\}$</span> and column
     indices <span>c ∈ \{0,\dots,511\}.</span>
 </p>
 <br/>
@@ -104,7 +102,7 @@ math: true
 <p>
     <span>$$
         b = \lceil log_2(s) \rceil
-          = \lceil log_2(512) \rceil
+          = \lceil log_2(511) \rceil
           = 9
     $$</span>Each stored cross-sum element is a raw integer in <span>$\{0,\dots,511\}</span> and is serialized using
     <span>$b=9$</span> bits (MSB-first within the 9-bit field).
@@ -123,11 +121,11 @@ math: true
 </p>
 <h3>Mapping bits to CSM</h3>
 <p>
-    Bits are written into the CSM left-to-right, top-to-bottom (row-major). For bit position $𝑘 ∈ \{0,\dots, s^2\}$:
+    Bits are written into the CSM left-to-right, top-to-bottom (row-major). For bit-position $𝑘 ∈ \{0,\dots, s^2\}$:
     $$
     r=\left\lfloor \frac{k}{s}\right\rfloor,\qquad c = k \bmod s,
     $$
-    and the $k$-th emitted bit is stored at $CSM[r,c]$.
+    and the $k$-th emitted bit is stored at $CSM[r, c]$.
 </p>
 <br/>
 <h3>Block sizing and padding</h3>
@@ -135,7 +133,7 @@ math: true
 <p>
     Each full block contains:
     $$
-    s^2 = 512^2 = 262,144\ bits = 32,768\ bytes = 32\ KB
+    s^2 = 511^2 = 261,121\ bits \approx 32,641\ bytes \approx 32\ KB
     $$
 </p>
 <ul>
@@ -161,7 +159,7 @@ math: true
 <br/>
 <p>
     All cross-sums are computed using the canonical loop bounds $0,\dots,510$ ($511$ terms), and cyclic diagonal
-    addressing uses modulo $s=512$. Let "$mod\ s$" mean modulo $512$.
+    addressing uses modulo $s=511$. Let "$mod\ s$" mean modulo $511$.
 </p>
 <br/>
 <h3>Lateral Sum Vector (LSM)</h3>
@@ -233,9 +231,9 @@ math: true
 <p>
     For any row index $r$, define:
     $$
-    RowBytes(r)\ ∈\ \{0,1\}^{512}\ →\ {0,1}^{64\ bytes}
+    RowBytes(r)\ ∈\ \{0,1\}^{511}\ →\ {0,1}^{64\ bytes}
     $$
-    as the packed 512-bit row $CSM[r,0,\dots,511]$ using the canonical bit order:
+    as the packed 511-bit row $CSM[r,0,\dots,511]$ using the canonical bit order:
 </p>
 <ul>
     <li>bits in a byte are MSB-first</li>
@@ -322,7 +320,7 @@ math: true
 <h2 class="center">File Container Format</h2>
 <br/>
 <p>
-    All multi-byte integer fields in the header are little-endian
+    All multibyte integer fields in the header are little-endian
 </p>
 <br/>
 <h3>Header fields (fixed layout)</h3>
@@ -353,7 +351,7 @@ math: true
     Blocks are fixed-size. With:
     $$
     header\_bytes = 28
-    block\_bytes = 18,652
+    block\_bytes = 18, 652
     $$
     the file offset to block $i$ (0-based) is:
     $$
@@ -366,7 +364,7 @@ math: true
 <h3>Success Criteria</h3>
 <br/>
 <p>
-    A decoded block is valid if and only if the decoder produces a $512 \times 512$ CSM such that:
+    A decoded block is valid if and only if the decoder produces a $511 \times 511$ CSM such that:
 </p>
 <ol>
     <li>cross-sums match exactly for indices $0,\dots,510$ under the normative definition.</li>
@@ -398,14 +396,14 @@ math: true
     for c in 0..510:<br/>
     &nbsp;&nbsp;&nbsp;&nbsp;VSM[c] = sum_{r=0..510} CSM[r,c]<br/>
     for d in 0..510:<br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;DSM[d] = sum_{r=0..510} CSM[r,(d-r) mod 512]<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;DSM[d] = sum_{r=0..510} CSM[r,(d-r) mod 511]<br/>
     for x in 0..510:<br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;XSM[x] = sum_{r=0..510} CSM[r,(r-x) mod 512]<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;XSM[x] = sum_{r=0..510} CSM[r,(r-x) mod 511]<br/>
     <br/>
     seedBytes = ASCII("RG9uYWxkVHJ1bXBJbXBlYWNoSW5jYXJjZXJhdGVIaXN0b3J5UmVtZW1iZXJz")<br/>
     N = SHA256(seedBytes)<br/>
     <br/>
-    RowBytes(r) = Pack512Bits(CSM[r,0..511]) // 64 bytes, MSB-first in each byte<br/>
+    RowBytes(r) = Pack511Bits(CSM[r,0..511]) // 64 bytes, MSB-first in each byte<br/>
     LH[0] = SHA256( N || RowBytes(0) )<br/>
     for r in 1..510:<br/>
     &nbsp;&nbsp;&nbsp;&nbsp;LH[r] = SHA256( LH[r-1] || RowBytes(r) )<br/>
@@ -471,7 +469,7 @@ math: true
 <br/>
 <ul>
     <li>Input: $32,768$ bytes of 0xAA (binary $10101010$, MSB-first)</li>
-    <li>Expected: for all rows, $CSM[r,c] = 1 if c even$</li>
+    <li>Expected: for all rows, $CSM[r, c] = 1 if c even$</li>
     <li>Cross sums:
         <ul>
             <li>$LSM[r] = 256 for all r ∈ 0,...,510$</li>
@@ -521,7 +519,7 @@ math: true
 <br/>
 <p>
     This specification canonizes and supersedes earlier internal drafts and working notes by fixing parameters and
-    eliminating recurrent ambiguity (e.g., the canonical index domain $0..510$ for stored vectors, fixed $s=512$, and
+    eliminating recurrent ambiguity (e.g., the canonical index domain $0..510$ for stored vectors, fixed $s=511$, and
     fixed $b = 9$). The reconstruction algorithm remains implementation-defined to permit experimentation and iteration
     while maintaining deterministic acceptance conditions.
 </p>
