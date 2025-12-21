@@ -274,19 +274,6 @@ math: true
     The stored $LH$ array is $LH[0,\dots,510]$. A decoder MUST recompute the chain from the reconstructed $CSM$ and
     compare for exact equality.
 </p>
-<hr/>
-<h2 class="center">Acceptance Criteria and Correctness</h2>
-<br/>
-<p>A reconstructed candidate $\widehat{CSM}$ is valid if and only if:</p>
-<ol>
-    <li>
-        <strong>Cross-Sum match:</strong> recomputed $LSM,\ VSM,\ DSM,\ XSM$ equal the stored vectors for all indices
-        ($0,\dots 510$).
-    </li>
-    <li>
-        <strong>LH Match:</strong> recomputed $LH[0,\dots,510]$ equals the stored $LH$ chain, defined above.
-    </li>
-</ol>
 <p>
     If either condition fails, the candidate MUST be rejected.
 </p>
