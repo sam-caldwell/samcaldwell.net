@@ -95,12 +95,12 @@ math: true
 </p>
 <ol>
     <li>A validated file header containing at least:
-    <ul>
-        <li><code>version</code></li>
-        <li><code>original_file_size_bytes</code></li>
-        <li><code>block_count</code></li>
-        <li>header integrity fields as defined by the CRSCE container format (Caldwell, 2024).</li>
-    </ul>
+        <ul>
+            <li><code>version</code></li>
+            <li><code>original_file_size_bytes</code></li>
+            <li><code>block_count</code></li>
+            <li>header integrity fields as defined by the CRSCE container format (Caldwell, 2024).</li>
+        </ul>
     </li>
     <li>A sequence of <code>block_count</code> fixed-size block payloads.</li>
 </ol>
@@ -110,3 +110,191 @@ math: true
 </p>
 <br/>
 <h3>Outputs</h3>
+<br/>
+<p>
+    The decoder outputs a byte stream $Y$ such that: $ ∣Y∣ =\ $ <code>original_file_size_bytes</code>,
+    and $Y$ matches the original source bytes exactly.
+</p>
+<br/>
+<h3>Failure Semantics (Fail-hard)</h3>
+<br/>
+<p>
+    If the decoder cannot produce a valid CSM for any block under the acceptance criteria (discussed below), it MUST
+    stop decoding and return an ERROR. Best-effort or partial output MUST NOT be the default (Caldwell, 2024).
+</p>
+<br/>
+<h3>Block Payload Parsing</h3>
+<br/>
+<p>
+    Let the block payload be a bitstream $P$ of fixed length $149,216$ bits ($18,652$ bytes), byte-aligned. A decoder
+    MUST parse, in order:
+</p>
+<ol>
+    <li>$LH[0], LH[1], \dots, LH[510]$, each 256 bits (SHA-256 digest size).</li>
+    <li>$LSM[0..510]$: $s$ values, each $b=9$ bits, MSB-first within the 9-bit field.</li>
+    <li>$VSM[0..510]$: same encoding.</li>
+    <li>$DSM[0..510]$: same encoding.</li>
+    <li>$XSM[0..510]$: same encoding.</li>
+    <li>Exactly four trailing padding bits (expected to be zero) used to reach the byte boundary (Caldwell, 2024).</li>
+</ol>
+<p>
+    A decoder MAY treat nonzero padding bits as a format error.
+</p>
+<hr/>
+<h2 class="center">Canonical Reconstruction Target</h2>
+<br/>
+<h3>CSM reconstruction objective</h3>
+<br/>
+<p>
+    For each block, the decoder must reconstruct:
+    $$
+    CSM\ ∈\ \{0,1\}^{511 \times 511}
+    $$
+    such that both the cross-sum constraints and the $LH$ chain constraints (discussed later) are satisfied.
+</p>
+<br/>
+<h3>Canonical Inverse Byte Mapping</h3>
+<br/>
+<p>
+    Once a valid CSM is obtained, the output bytes are derived deterministically by traversing the CSM row-major and
+    packing bits MSB-first in each byte. This mapping is the inverse of the compressor’s “read bytes sequentially, emit
+    bits MSB-first, write to CSM row-major” rule (Caldwell, 2024). Therefore, correctness of the recovered bytes follows
+    directly from the correctness of the reconstructed CSM (Section 8.1).
+</p>
+<hr/>
+<h2 class="center">Cross-Sum Constraints</h2>
+<br/>
+<p>
+    All arithmetic in diagonal addressing is modulo $s=511$. All sums are taken over exactly $s=511 terms.
+</p>
+<br/>
+<h3>Lateral Sum Vector (LSM)</h3>
+<br/>
+<p>
+    For $r ∈ \{0,\dots,510\}$:
+    $$
+    LSM[r]=\sum_{c=0}^{s-1}CSM[r,c]
+    $$
+</p>
+<br/>
+<h3>Vertical Sum Vector (VSM)</h3>
+<br/>
+<p>
+    For $c ∈ \{0,\dots,510\}$:
+    $$
+    VSM[c]=\sum_{c=0}^{s-1}CSM[r,c]
+    $$
+</p>
+<br/>
+<h3>Diagonal Sum Vector (DSM), cyclic</h3>
+<br/>
+<p>
+    For $d ∈ \{0,\dots,510\}$:
+    $$
+    DSM[d]=\sum_{r=0}^{s-1}CSM[r,\ (d-r)\ mod\ s)]
+    $$
+</p>
+<br/>
+<h3>Anti-Diagonal Sum Vector (XSM), cyclic</h3>
+<br/>
+<p>
+    For $x ∈ \{0,\dots,510\}$:
+    $$
+    DSM[x]=\sum_{r=0}^{s-1}CSM[r,\ (r-x)\ mod\ s)]
+    $$
+</p>
+<br/>
+<h3>Stored value interpretation</h3>
+<br/>
+<p>
+    Each stored cross-sum element MUST be interpreted as the raw integer value of the corresponding sum, and MUST lie in
+    ${0, \dots, 511}$, consistent with $b=9$ bits (Caldwell, 2024).
+</p>
+<hr/>
+<h2 class="center">Lateral Hash Matrix ($LH$) Chain</h2>
+<br/>
+<h3>Hash Primitive</h3>
+<br/>
+<p>
+    SHA-256 MUST be implemented exactly as specified in the Secure Hash Standard (NIST, 2015).
+</p>
+<br/>
+<h3>Fixed Seed</h3>
+<br/>
+<p>
+    CRSCE defines a fixed, unchanging seed string. Let <code>seedBytes</code> be the literal ASCII/UTF-8 bytes of the
+    seed string defined by the CRSCE standard (Caldwell, 2024).
+</p>
+<p>
+    Define:
+    $$
+    N=Sha256(seedBytes)
+    $$
+</p>
+<br/>
+<h3>Row Serialization $RowBytes(r)$</h3>
+<br/>
+<p>
+    For each $r\ ∈\ \{0,\dots,510\}$, define $RowBytes(r)$ as the packed 511-bit row $CSM[r,0,\dots,510]$ into exactly
+    64 bytes, where:
+</p>
+<ul>
+    <li>bits within a byte are MSB-first.</li>
+    <li>bytes follow increasing column order from $c=0$ to $c=510$ (with the unused final bit of the 512-bit
+        container treated according to the compressor's defined packing rule for 511 bits.
+    </li>
+    <li>the mapping is identical to the compressor's row packing convention (Caldwell, 2024).</li>
+</ul>
+<br/>
+<h3>Chain definition</h3>
+<br/>
+<p>
+    The $LH$ chain is defined as:
+    $$
+    \begin{aligned}
+    LH_0=Sha256(N || RowBytes(i)) \\
+    \\
+    LH_r=SHA256(LH_{r−1} || RowBytes(r)) for r\ ∈\ \{1, \dots , 510\}.
+    \end{aligned}
+    $$
+</p>
+<hr/>
+<h2 class="center">Acceptance Criteria and Correctness</h2>
+<br/>
+<h3>Block Validity</h3>
+<br/>
+<p>
+    A reconstructed candidate $\widehat{CSM}$ is valid if and only if:
+</p>
+<ol>
+    <li>Cross-sum match: recomputed $LSM,\ VSM,\ DSM,\ XSM$ equal the stored vectors for all indices</li>
+    <li>$LH$ match: recomputed $LH[0, \dots, 510]$ equal the stored $LH$ chain (defined above).</li>
+</ol>
+<p>
+    The stored $LH$ array is $LH[0,\dots,510]$. A decoder MUST recompute the chain from the reconstructed $CSM$ and
+    compare for exact equality.
+</p>
+<hr/>
+<h2 class="center">Acceptance Criteria and Correctness</h2>
+<br/>
+<p>A reconstructed candidate $\widehat{CSM}$ is valid if and only if:</p>
+<ol>
+    <li>
+        <strong>Cross-Sum match:</strong> recomputed $LSM,\ VSM,\ DSM,\ XSM$ equal the stored vectors for all indices
+        ($0,\dots 510$).
+    </li>
+    <li>
+        <strong>LH Match:</strong> recomputed $LH[0,\dots,510]$ equals the stored $LH$ chain, defined above.
+    </li>
+</ol>
+<p>
+    If either condition fails, the candidate MUST be rejected.
+</p>
+<hr/>
+<h2 class="center">Byte-stream Correctness Given a Valid CSM</h2>
+<br/>
+<p>
+    Let the compressor define a total order on block bits by reading input bytes sequentially, emitting each byte’s bits
+    MSB-first, and placing emitted bits into CSM in row-major order (Caldwell, 2024). Define the decoder’s inverse as
+    reading CSM in the same row-major order and packing groups of 8 bits MSB-first into bytes.
+</p>
