@@ -161,7 +161,7 @@ math: true
 <p>
     For $r ∈ \{0,\dots,510\}$:
     $$
-    LSM[r]=\sum_{c=0}^{s-2}CSM[r,c]
+    LSM[r]=\sum_{c=0}^{s-1}CSM[r,c]
     $$
 </p>
 <br/>
@@ -170,7 +170,7 @@ math: true
 <p>
     For $c ∈ \{0,\dots,510\}$:
     $$
-    VSM[c]=\sum_{c=0}^{s-2}CSM[r,c]
+    VSM[c]=\sum_{c=0}^{s-1}CSM[r,c]
     $$
 </p>
 <br/>
@@ -179,7 +179,7 @@ math: true
 <p>
     For $d ∈ \{0,\dots,510\}$:
     $$
-    DSM[d]=\sum_{r=0}^{s-2}CSM[r,\ (d-r)\ mod\ s)]
+    DSM[d]=\sum_{r=0}^{s-1}CSM[r,\ (d-r)\ mod\ s)]
     $$
 </p>
 <br/>
@@ -188,7 +188,7 @@ math: true
 <p>
     For $x ∈ \{0,\dots,510\}$:
     $$
-    DSM[x]=\sum_{r=0}^{s-2}CSM[r,\ (r-x)\ mod\ s)]
+    DSM[x]=\sum_{r=0}^{s-1}CSM[r,\ (r-x)\ mod\ s)]
     $$
 </p>
 <br/>
