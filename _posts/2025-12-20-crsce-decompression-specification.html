@@ -285,3 +285,129 @@ math: true
     MSB-first, and placing emitted bits into CSM in row-major order (Caldwell, 2024). Define the decoder’s inverse as
     reading CSM in the same row-major order and packing groups of 8 bits MSB-first into bytes.
 </p>
+<p>
+    Because both mappings use the same bit order and traversal order, the composition “compress bit placement” followed
+    by “decompress bit extraction” is the identity on the block bitstring, up to final-block padding removal. Thus, once
+    $\widehat{CSM}$ is valid, the recovered bytes are determined uniquely and are correct by construction.
+</p>
+<br/>
+<h3>Fail-Hard Requirement</h3>
+<br/>
+<p>
+    If no valid $\widehat{CSM}$ is found, the decoder MUST return an ERROR.
+</p>
+<p>
+    If a block consumes more than <code>DecoderTimeout</code>, the decoder MUST return an ERROR, where the value of
+    <code>DecoderTimeout</code> is implementation-defined and should provide a safeguard to unsolvable blocks.
+</p>
+<hr/>
+<h2 class="center">Reconstruction Strategy (Solver-Agnostic Contract)</h2>
+<br/>
+<h3>Normative Statement</h3>
+<p>
+    The reconstruction method is implementation-defined. A conforming decoder MAY use any internal method (including but
+    not limited to deterministic elimination, constraint propagation, loopy belief propagation, and Game of Beliefs
+    Protocol message passing) provided the acceptance criteria in Section 8 are satisfied exactly (Caldwell, 2024).
+</p>
+<br/>
+<h3>Informative: why a message-passing approach is appropriate</h3>
+<br/>
+<p>
+    The CRSCE constraint system can be represented as a factor graph with:
+</p>
+<ul>
+    <li>variable nodes $x_{r,c}\ ∈\ \{0,\ 1\} for each $CSM$ cell, and</li>
+    <li>factor nodes enforcing each cross-sum equality (one per row/column/diagonal/anti-diagonal index).</li>
+</ul>
+<p>
+    This aligns naturally with the factor-graph formalism and sum-product style message passing described in
+    foundational work on belief propagation and factor graphs (Kschischang et al., 2001; Pearl, 1988; Wainwright &
+    Jordan, 2008). CRSCE’s GOBP framing can be viewed as an engineering protocol for orchestrating such message updates
+    and integrating deterministic constraints and local moves (Caldwell, 2024).
+</p>
+<br/>
+<h3>Informative: prototype-ready DE+GOBP decomposition</h3>
+<br/>
+<p>
+    <em><strong>Disclaimer:</strong> As said, above, decompression is implementation-defined (Caldwell, 2024) and this
+        section merely suggests one possible implementation. Nothing in this section should be construed as precluding a
+        different decompression implementation, provided any implementation must be cross-compatible with the other
+        sections in this standard.</em>
+</p>
+<p>
+    A prototype-ready decoder commonly separates reconstruction into:
+</p>
+<ol style="list-style-type:none">
+    <li><h4>Deterministic Elimination (DE):</h4>
+        <br/>
+        <ol style="list-style-type:none">
+            <li><h5>Simple Folding</h5>
+                <br/>
+                <p>
+                    Maintain for each constraint line a residual:
+                    $$
+                    R = S - \sum(assigned\ ones), U=$(unassigned\ variables\ on\ the\ line).
+                    $$
+                    If $R=0$, all unassigned variables on that line are forced to $0$;
+                    If $R=U$, then all are forced to 1. These implications are logically sound because they are a direct
+                    consequence of the equality constraint over $\{0,1\}$ variables.
+                </p>
+            </li>
+            <li><h5>Known-Hash Folding</h5>
+                <br/>
+                <p>
+                    Certain patterns MAY be identified which occur with regular frequency, such as alternating 0's and
+                    1's.
+                    Hashes for these patterns can be pre-computed and stored in the decoder. Then at the start of the
+                    decoder
+                    process, a quick search of this known-hash table can be made to solve any rows that match a known
+                    hash
+                    value. The memory consumed by the table is more than justified where the probability of solving even
+                    one
+                    row using this method will save a non-trivial amount of compute and memory in the decoding process.
+                </p>
+                <p>
+                    This may be applied repeatedly during the decoding process.
+                </p>
+            </li>
+        </ol>
+    </li>
+    <li><h4>Iterative Inference (GOBP/LBP):</h4>
+        <br/>
+        <p>
+            When DE reaches a fixed point, apply iterative message passing on the factor graph to prioritize highly
+            biased variables for assignment or to drive convergence toward a consistent global solution. The use of
+            damping and scheduling is a standard stabilization practice in loopy graphs (Wainwright & Jordan, 2008).
+        </p>
+        <p>
+            This may be applied repeatedly during the decoding process.
+        </p>
+    </li>
+    <li>
+        <h4>LH-based Selection</h4>
+        <br/>
+        <p>
+            Because LH is an exact oracle over the reconstructed rows, it serves to reject candidate solutions that
+            satisfy cross-sums but do not match the committed row content. This use of a cryptographic commitment as an
+            accept/reject oracle is consistent with SHA-256’s standardized role as an integrity mechanism (NIST, 2015).
+        </p>
+        <p>
+            This may be applied repeatedly during the decoding process when a candidate row is prepared.
+        </p>
+    </li>
+</ol>
+<p>
+    Critically, LH is not required to “search the space” by itself; it is used to select among solutions produced by
+    DE+GOBP (Caldwell, 2024).
+</p>
+<hr/>
+<h2 class="center">Feasibility and Performance Argument</h2>
+<br/>
+<h3>Feasibility: existence of a valid solution for conforming blocks</h3>
+<br/>
+<p>
+    For any block produced by a conforming CRSCE compressor, there exists at least one valid $CSM$: the $CSM$ constructed
+    during compression from the input stream. The compressor computes and stores cross-sums and $LH$ from that $CSM$
+    (Caldwell, 2024). Therefore, the constraint system is satisfiable for conforming data; decompression is a search for
+    that satisfying assignment.
+</p>
