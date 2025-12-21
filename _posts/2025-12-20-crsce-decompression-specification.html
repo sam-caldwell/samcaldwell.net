@@ -1,0 +1,112 @@
+---
+layout: page
+title: CRSCE Decompression Specification (Version 2025-12-20)
+date: 2025-12-20 22:46:58-0600
+description: This post describes the CRSCE decompression process.
+keywords: CRSCE, compression, decompression, computer science, mathematics
+math: true
+---
+
+<hr/>
+<h2 class="center">Abstract</h2>
+<br/>
+<p>
+    Cross-Sums Compression and Expansion (CRSCE) decompression reconstructs a binary block from (i) four families of
+    cyclic cross-sum constraints and (ii) a chained lateral hash (LH) oracle, yielding a $511 \times 511$ Cross-Sum
+    Matrix (CSM) that is then deterministically mapped back to the original byte stream. Unlike classical codecs that
+    encode an invertible transform, CRSCE stores global structural constraints and a cryptographic commitment.
+    Accordingly, decompression is defined by acceptance constraints rather than a mandated solver: any reconstruction
+    strategy is conforming if and only if the recovered CSM satisfies the canonical cross-sum equalities and reproduces
+    the LH chain exactly. This document specifies the normative parsing rules, cross-sum mathematics, LH construction,
+    acceptance criteria, fail-hard semantics, and a prototype-ready reconstruction framework based on deterministic
+    elimination (DE) and iterative message passing (GOBP/LBP), with explicit validation of mathematical consistency with
+    the CRSCE compression specification and a defensible feasibility and performance argument under stated assumptions
+    (Caldwell, 2024; Herman & Kuba, 1999; Kschischang et al., 2001; National Institute of Standards and Technology
+    [NIST], 2015; Pearl, 1988; Wainwright & Jordan, 2008).
+</p>
+<hr/>
+<h2 class="center">Scope and Conformance</h2>
+<br/>
+<h3>Scope</h3>
+<br/>
+<p>
+    This specification defines CRSCE decompression for CRSCE format version 1. It covers:
+</p>
+<ul>
+    <li>Block payload parsing and field interpretation.</li>
+    <li>The normative cross-sum and LH verification functions.</li>
+    <li>Conformance requirements for success and failure.</li>
+    <li>A solver-agnostic reconstruction contract, plus an informative prototype-ready approach.</li>
+</ul>
+<br/>
+<h3>Normative keywords</h3>
+<br/>
+<p>
+    The keywords MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY indicate requirement levels as defined for technical
+    standards.
+</p>
+<hr/>
+<h2 class="center">Definitions and Notations</h2>
+<br/>
+<h3>Constants and indexing</h3>
+<p>
+    CRSCE uses a fixed block dimension:
+    $$
+    s=511.
+    $$
+    The CSM indices are:
+    $$
+    r,\ c\ ∈\ {0, \dots, s−1}\ =\ {0, \dots , 510}.
+    $$
+    The stored index domain for all cross-sum vectors and the $LH$ array is:
+    $$
+    i\ ∈\ {0, \dots ,510},
+    $$
+    so each stored vector has exactly $s=511$ elements.
+</p>
+<p>
+    The cross-sum bit-width is:
+    $$
+    b=\ \lceil log_2(s) \rceil = \lceil log_2(511) \rceil\ =\ 9,
+    $$
+    and each stored cross-sum element is a raw integer in ${0, \dots, 511}$ encoded in exactly $b$ bits (Caldwell,
+    2024).
+</p>
+<br/>
+<h3>Primary Object</h3>
+<br/>
+<ul>
+    <li><strong>CSM</strong>: the Cross-Sum Matrix,
+        $$
+        CSM\ ∈\ \{0,\ 1\}^{s \times s}=\{0,\ 1\}^{511 \times 511}.
+        $$
+    </li>
+    <li>Cross-sum vectors: $LSM$, $VSM$, $DSM$, $XSM$, each length $s$</li>
+    <li>Lateral Hash Array ($LH$): $LH[0,\dots,510]$, a length-$s$ chain of SHA-256 digests used for deterministic
+        verification (Caldwell, 2024; NIST, 2015)
+    </li>
+</ul>
+<hr/>
+<h2 class="center">Decompression Inputs and Outputs</h2>
+<br/>
+<h3>Inputs</h3>
+<p>
+    A conforming decoder consumes:
+</p>
+<ol>
+    <li>A validated file header containing at least:
+    <ul>
+        <li><code>version</code></li>
+        <li><code>original_file_size_bytes</code></li>
+        <li><code>block_count</code></li>
+        <li>header integrity fields as defined by the CRSCE container format (Caldwell, 2024).</li>
+    </ul>
+    </li>
+    <li>A sequence of <code>block_count</code> fixed-size block payloads.</li>
+</ol>
+<p>
+    If <code>original_file_size_bytes = 0</code>, the file MUST contain <code>block_count=0</code> and the decoder
+    MUST output the empty byte stream (Caldwell, 2024).
+</p>
+<br/>
+<h3>Outputs</h3>
