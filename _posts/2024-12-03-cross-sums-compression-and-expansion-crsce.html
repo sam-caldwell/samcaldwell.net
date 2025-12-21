@@ -15,12 +15,12 @@ math: true
     (ii) a chained lateral hash array (LH) used as a deterministic verification oracle. The CRSCE format defines a
     fixed-size block payload, a fixed header, and strict verification criteria for decoding. Reconstruction
     (decompression) is defined only by its acceptance constraints—any internal solving strategy (e.g., deterministic
-    elimination, loopy belief propagation, or Game of Beliefs Protocol message passing) is
-    implementation-defined—provided the final candidate CSM satisfies the canonical cross-sum constraints and the LH
-    hash chain exactly. This document specifies the file format, bit-ordering, cross-sum definitions, LH construction,
-    packing order, padding, random-access semantics, and conformance test vectors. It also provides explanatory context
-    by relating CRSCE decompression to constrained reconstruction and message passing over factor graphs (Pearl, 1988;
-    Kschischang et al., 2001) and to discrete tomography-style ambiguity management (Herman & Kuba, 1999). Cryptographic
+    elimination, loopy belief propagation, or Game of Beliefs Protocol message passing) is implementation-defined,
+    provided the final candidate CSM satisfies the canonical cross-sum constraints and the LH hash chain exactly. This
+    document specifies the file format, bit-ordering, cross-sum definitions, LH construction, packing order, padding,
+    random-access semantics, and conformance test vectors. It also provides explanatory context by relating CRSCE
+    decompression to constrained reconstruction and message passing over factor graphs (Pearl, 1988; Kschischang
+    et al., 2001) and to discrete tomography-style ambiguity management (Herman & Kuba, 1999). Cryptographic
     verification relies on SHA-256 as standardized by NIST (National Institute of Standards and Technology [NIST],
     2015).
 </p>
@@ -77,35 +77,29 @@ math: true
 <h3>Fixed Matrix Size</h3>
 <br/>
 <p>
-    <span>$$s=511$$</span>
-    The CSM is a <span>$511 \times 511</span> bit matrix with row indices <span>$r ∈ \{0,\dots,511\}$</span> and column
-    indices <span>c ∈ \{0,\dots,511\}.</span>
+    $$s=511$$
+    The CSM is a $511 \times 511$ bit matrix with row indices
+    $r \in \{0,\dots,510\}$ and column indices $c \in \{0,\dots,510\}$.
 </p>
 <br/>
 <h3>Canonical stored index domain</h3>
 <br/>
+<p>CRSCE stores cross-sum vectors and LH over the canonical index domain:</p>
 <p>
-    CRSCE stores cross-sum vectors and LH over the canonical index domain:<span>$$
-        ℓ = s\ -\ 1\ =\ 511,\ i ∈ \{0,...,ℓ\ -\ 1\}\ =\ \{0,...,510\}
-    $$</span>
+    $$ i \in \{0,\dots,s-1\} = \{0,\dots,510\}. $$
 </p>
-<p>
-    Thus:
-</p>
+<p>Thus:</p>
 <ul>
-    <li>$LSM$, $VSM$, $DSM$, $XSM$ each have $511$ elements indexed $0,...,510$.</li>
-    <li>LH has 511 elements indexed $0,\dots,511$.</li>
+    <li>$LSM$, $VSM$, $DSM$, $XSM$ each have $511$ elements indexed $0,\dots,510$.</li>
+    <li>$LH$ has $511$ elements indexed $0,\dots,510$.</li>
 </ul>
 <br/>
 <h3>Bit-width for stored cross-sum values</h3>
 <br/>
 <p>
-    <span>$$
-        b = \lceil log_2(s) \rceil
-          = \lceil log_2(511) \rceil
-          = 9
-    $$</span>Each stored cross-sum element is a raw integer in <span>$\{0,\dots,511\}</span> and is serialized using
-    <span>$b=9$</span> bits (MSB-first within the 9-bit field).
+    $$ b = \lceil \log_2(s) \rceil = \lceil \log_2(511) \rceil = 9 $$
+    Each stored cross-sum element is a raw integer in $\{0,\dots,511\}$ and is serialized
+    using $b=9$ bits (MSB-first within the 9-bit field).
 </p>
 <hr/>
 <h2 class="center">Bit Ordering, Block Formation, and CSM Construction</h2>
@@ -233,7 +227,7 @@ math: true
     $$
     RowBytes(r)\ ∈\ \{0,1\}^{511}\ →\ {0,1}^{64\ bytes}
     $$
-    as the packed 511-bit row $CSM[r,0,\dots,511]$ using the canonical bit order:
+    as the packed 511-bit row $CSM[r,0,\dots,510]$ using the canonical bit order:
 </p>
 <ul>
     <li>bits in a byte are MSB-first</li>
@@ -403,7 +397,7 @@ math: true
     seedBytes = ASCII("RG9uYWxkVHJ1bXBJbXBlYWNoSW5jYXJjZXJhdGVIaXN0b3J5UmVtZW1iZXJz")<br/>
     N = SHA256(seedBytes)<br/>
     <br/>
-    RowBytes(r) = Pack511Bits(CSM[r,0..511]) // 64 bytes, MSB-first in each byte<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;RowBytes(r) = Pack511Bits(CSM[r,0..510]) // 64 bytes, MSB-first in each byte<br/>
     LH[0] = SHA256( N || RowBytes(0) )<br/>
     for r in 1..510:<br/>
     &nbsp;&nbsp;&nbsp;&nbsp;LH[r] = SHA256( LH[r-1] || RowBytes(r) )<br/>
