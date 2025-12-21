@@ -28,6 +28,18 @@ defaults:
       type: "pages"
     values:
       layout: page
+  # Pages under dashboards/ act as dashboard entries
+  - scope:
+      path: "dashboards"
+      type: "pages"
+    values:
+      layout: page
+  # Pages under books/ act as book entries
+  - scope:
+      path: "books"
+      type: "pages"
+    values:
+      layout: page
   # Blog posts use the same page layout (global template)
   - scope:
       path: ""

@@ -31,6 +31,18 @@ A simple Jekyll site for samcaldwell.net. Local development is containerized wit
 
 - The list is available at `/jokes/` and is linked in the nav.
 
+## Dashboards
+
+- Add dashboards as pages under `dashboards/` (e.g., `dashboards/network-health.html`).
+- Each file should include front matter so Jekyll processes it, for example:
+
+  ---
+  title: Network Health
+  description: Optional short summary
+  ---
+
+- The list is available at `/dashboards/` and is linked in the nav.
+
 ## Create a New Blog Post
 
 - One-liner: `make post TITLE="My First Post"`
@@ -55,6 +67,8 @@ A simple Jekyll site for samcaldwell.net. Local development is containerized wit
 - `_data/navigation.yml` — nav items rendered by `_includes/nav.html`
 - `css/`, `js/`, `img/` — static assets
 - `jokes/` — individual joke pages (listed at `/jokes/`)
+- `books/` — individual book pages (listed at `/books/`)
+- `dashboards/` — individual dashboard pages (listed at `/dashboards/`)
 - `.well-known/` — included for deployment via `_config.yml`
 
 ## Configuration

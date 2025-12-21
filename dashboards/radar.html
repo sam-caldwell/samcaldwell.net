@@ -1,0 +1,71 @@
+---
+layout: page
+title: Radar
+description: Live US radar map
+permalink: /dashboards/radar/
+---
+
+<style>
+  /* Full-screen mode hides site chrome and expands content */
+  html.fullscreen header,
+  html.fullscreen nav.site-nav,
+  html.fullscreen footer { display: none !important; }
+  html.fullscreen .page-title { display: none !important; }
+  html.fullscreen #content.container { max-width: 100% !important; padding-left: 0.5rem; padding-right: 0.5rem; padding-top: 0 !important; }
+
+  /* Make this page's content flush with top */
+  #content.container { padding-top: 0 !important; }
+
+  /* Radar embed container */
+  .radar-embed {
+    position: relative;
+    width: 100%;
+    height: var(--radar-h, 70vh);
+    min-height: 300px;
+    max-height: 100vh;
+    border: 1px solid #30363d;
+    border-radius: .375rem;
+    overflow: hidden;
+    background: #0d1117;
+  }
+  html.fullscreen .radar-embed {
+    height: var(--radar-h, 92vh);
+    min-height: 60vh;
+  }
+  .radar-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+</style>
+
+<script>
+  (function() {
+    try {
+      var qs = new URLSearchParams(window.location.search);
+      var v = qs.get('full_screen');
+      if (v && typeof v === 'string' && ['1','true','yes'].includes(v.toLowerCase())) {
+        document.documentElement.classList.add('fullscreen');
+      }
+      // Optional: override radar height via query (?radar_h=80vh or ?radar_h=600)
+      var rh = qs.get('radar_h') || qs.get('radar_height');
+      if (rh) {
+        rh = String(rh).trim();
+        var val = null;
+        if (/^\d+(?:\.\d+)?$/.test(rh)) {
+          val = rh + 'px';
+        } else if (/^\d+(?:\.\d+)?vh$/.test(rh) || /^\d+(?:\.\d+)?px$/.test(rh) || /^calc\(.+\)$/.test(rh)) {
+          val = rh;
+        }
+        if (val) document.documentElement.style.setProperty('--radar-h', val);
+      }
+    } catch (e) { /* ignore */ }
+  })();
+</script>
+
+<div class="radar-embed">
+  <iframe title="US Radar" src="https://www.rainviewer.com/map.html?loc=39,-98,4&oFa=0&oC=0&oU=0&oW=0&oCl=1&oF=0&oT=0&layer=radar&sm=1&sn=1&hu=0&oAP=1" allowfullscreen loading="lazy"></iframe>
+</div>
+

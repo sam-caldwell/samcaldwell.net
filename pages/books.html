@@ -1,0 +1,27 @@
+---
+layout: page
+title: books
+description: Reading list and notes.
+permalink: /books/
+---
+
+{% assign book_pages = site.pages | where_exp: "p", "p.path contains 'books/'" %}
+{% assign books = book_pages | sort: 'date' | reverse %}
+
+{% if books and books.size > 0 %}
+<ul class="list-group">
+  {% for b in books %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <a href="{{ b.url | relative_url }}">{{ b.title | default: b.name | default: b.url }}</a>
+    {% if b.date %}
+      <small class="text-muted">{{ b.date | date: "%b %d, %Y" }}</small>
+    {% endif %}
+  </li>
+  {% endfor %}
+  </ul>
+{% else %}
+<ul class="list-group">
+  <li class="list-group-item">No books yet.</li>
+  </ul>
+{% endif %}
+

@@ -1,0 +1,235 @@
+---
+layout: page
+title: Weather
+description: Live weather for select cities
+permalink: /dashboards/weather/
+---
+
+<style>
+  /* Full-screen mode hides site chrome and expands content */
+  html.fullscreen header,
+  html.fullscreen nav.site-nav,
+  html.fullscreen footer { display: none !important; }
+  html.fullscreen .page-title { display: none !important; }
+  html.fullscreen #content.container { max-width: 100% !important; padding-left: 0.5rem; padding-right: 0.5rem; padding-top: 0 !important; }
+
+  /* Make this page's content flush with top */
+  #content.container { padding-top: 0 !important; }
+
+  /* Radar embed container */
+  .radar-embed {
+    position: relative;
+    width: 100%;
+    height: var(--radar-h, 60vh);
+    min-height: 300px;
+    max-height: 100vh;
+    border: 1px solid #30363d;
+    border-radius: .375rem;
+    overflow: hidden;
+    background: #0d1117;
+  }
+  html.fullscreen .radar-embed {
+    height: var(--radar-h, 92vh);
+    min-height: 60vh;
+  }
+  .radar-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+</style>
+
+<script>
+  (function() {
+    try {
+      var qs = new URLSearchParams(window.location.search);
+      var v = qs.get('full_screen');
+      if (v && typeof v === 'string' && ['1','true','yes'].includes(v.toLowerCase())) {
+        document.documentElement.classList.add('fullscreen');
+      }
+      // Optional: override radar height via query (?radar_h=80vh or ?radar_h=600)
+      var rh = qs.get('radar_h') || qs.get('radar_height');
+      if (rh) {
+        rh = String(rh).trim();
+        var val = null;
+        if (/^\d+(?:\.\d+)?$/.test(rh)) {
+          val = rh + 'px';
+        } else if (/^\d+(?:\.\d+)?vh$/.test(rh) || /^\d+(?:\.\d+)?px$/.test(rh) || /^calc\(.+\)$/.test(rh)) {
+          val = rh;
+        }
+        if (val) document.documentElement.style.setProperty('--radar-h', val);
+      }
+    } catch (e) { /* ignore */ }
+  })();
+</script>
+
+<div class="row">
+  <div class="col-12 col-lg-6 mb-3">
+    <div class="radar-embed">
+      <iframe title="US Radar" src="https://www.rainviewer.com/map.html?loc=39,-98,4&oFa=0&oC=0&oU=0&oW=0&oCl=1&oF=0&oT=0&layer=radar&sm=1&sn=1&hu=0&oAP=1" allowfullscreen loading="lazy"></iframe>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <p class="text-muted mb-1">Current conditions with today’s high/low. Data by Open‑Meteo.</p>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <small class="text-muted">Auto-refreshing every 60s</small>
+      <small id="weather-updated" class="text-muted"></small>
+    </div>
+    <ul id="weather-list" class="list-group mb-3">
+      <li class="list-group-item">Loading weather…</li>
+      <noscript>
+        <li class="list-group-item">This page requires JavaScript to fetch weather data.</li>
+      </noscript>
+    </ul>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const cities = [
+      { name: 'San Francisco, CA', lat: 37.7749, lon: -122.4194 },
+      { name: 'Sonora, Texas', lat: 30.5663, lon: -100.6437 },
+      { name: 'San Angelo, Texas', lat: 31.4638, lon: -100.4370 },
+      { name: 'Dallas, Texas', lat: 32.7767, lon: -96.7970 },
+      { name: 'Austin, Texas', lat: 30.2672, lon: -97.7431 },
+      { name: 'Houston, Texas', lat: 29.7604, lon: -95.3698 },
+      { name: 'New York, NY', lat: 40.7128, lon: -74.0060 }
+    ];
+
+    const $list = document.getElementById('weather-list');
+
+    function degToCardinal(deg) {
+      if (typeof deg !== 'number' || isNaN(deg)) return '-';
+      const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+      const i = Math.round(deg / 22.5) % 16;
+      return dirs[i];
+    }
+
+    function fmtNum(v, digits = 0) {
+      if (v === null || v === undefined || isNaN(v)) return '-';
+      return Number(v).toFixed(digits);
+    }
+
+    function metersToMiles(m) {
+      if (m === null || m === undefined || isNaN(m)) return null;
+      return m * 0.000621371;
+    }
+
+    async function fetchCityWeather(city) {
+      const params = new URLSearchParams({
+        latitude: city.lat,
+        longitude: city.lon,
+        current: [
+          'temperature_2m',
+          'relative_humidity_2m',
+          'precipitation',
+          'wind_speed_10m',
+          'wind_direction_10m',
+          'visibility'
+        ].join(','),
+        daily: [
+          'temperature_2m_max',
+          'temperature_2m_min'
+        ].join(','),
+        temperature_unit: 'fahrenheit',
+        windspeed_unit: 'mph',
+        precipitation_unit: 'inch',
+        timezone: 'auto',
+        forecast_days: '1'
+      });
+
+      const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      const cur = data.current || {};
+      const daily = data.daily || {};
+
+      const temp = cur.temperature_2m; // °F
+      const rh = cur.relative_humidity_2m; // %
+      const precip = cur.precipitation; // inches
+      const windSpd = cur.wind_speed_10m; // mph
+      const windDir = cur.wind_direction_10m; // deg
+      const visMi = metersToMiles(cur.visibility);
+
+      const tHigh = Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : null;
+      const tLow  = Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : null;
+
+      return {
+        name: city.name,
+        temp, tHigh, tLow,
+        precip,
+        windSpd, windDir,
+        visibilityMi: visMi,
+        humidity: rh
+      };
+    }
+
+    function setUpdatedNow() {
+      const el = document.getElementById('weather-updated');
+      if (el) el.textContent = 'Updated ' + new Date().toLocaleTimeString();
+    }
+
+    function render(items) {
+      $list.innerHTML = '';
+      for (const w of items) {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+
+        const wind = (w.windSpd != null || w.windDir != null)
+          ? `${fmtNum(w.windSpd, 0)} mph ${degToCardinal(w.windDir)}`
+          : '-';
+        const vis = (w.visibilityMi != null)
+          ? `${fmtNum(w.visibilityMi, 1)} mi`
+          : '-';
+
+        li.innerHTML = `
+          <div class="d-flex w-100 justify-content-between align-items-baseline">
+            <h5 class="mb-1">${w.name}</h5>
+            <small class="text-muted">Now</small>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-6 col-md-3"><strong>Temp:</strong> ${fmtNum(w.temp, 0)} °F</div>
+            <div class="col-6 col-md-3"><strong>High:</strong> ${fmtNum(w.tHigh, 0)} °F</div>
+            <div class="col-6 col-md-3"><strong>Low:</strong> ${fmtNum(w.tLow, 0)} °F</div>
+            <div class="col-6 col-md-3"><strong>Precip:</strong> ${fmtNum(w.precip, 2)} in</div>
+            <div class="col-6 col-md-3"><strong>Wind:</strong> ${wind}</div>
+            <div class="col-6 col-md-3"><strong>Visibility:</strong> ${vis}</div>
+            <div class="col-6 col-md-3"><strong>Humidity:</strong> ${fmtNum(w.humidity, 0)}%</div>
+          </div>
+        `;
+        $list.appendChild(li);
+      }
+      setUpdatedNow();
+    }
+
+    let inFlight = false;
+    async function updateAll() {
+      if (inFlight) return; // avoid overlapping refreshes
+      inFlight = true;
+      try {
+        const results = await Promise.allSettled(cities.map(fetchCityWeather));
+        const items = results.map((r, i) => {
+          if (r.status === 'fulfilled') return r.value;
+          return { name: cities[i].name };
+        });
+        render(items);
+      } catch (e) {
+        $list.innerHTML = '';
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.textContent = 'Failed to load weather data.';
+        $list.appendChild(li);
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    // Initial load and interval refresh every 60s
+    updateAll();
+    setInterval(updateAll, 60000);
+  })();
+</script>

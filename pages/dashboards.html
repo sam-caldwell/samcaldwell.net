@@ -1,0 +1,27 @@
+---
+layout: page
+title: Dashboards
+description: A list of dashboards and data views.
+permalink: /dashboards/
+---
+
+{% assign dashboard_pages = site.pages | where_exp: "p", "p.path contains 'dashboards/'" %}
+{% assign dashboards = dashboard_pages | sort: 'date' | reverse %}
+
+{% if dashboards and dashboards.size > 0 %}
+<ul class="list-group">
+  {% for d in dashboards %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <a href="{{ d.url | relative_url }}">{{ d.title | default: d.name | default: d.url }}</a>
+    {% if d.date %}
+      <small class="text-muted">{{ d.date | date: "%b %d, %Y" }}</small>
+    {% endif %}
+  </li>
+  {% endfor %}
+  </ul>
+{% else %}
+<ul class="list-group">
+  <li class="list-group-item">No dashboards yet.</li>
+  </ul>
+{% endif %}
+
