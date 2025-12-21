@@ -1,0 +1,231 @@
+---
+layout: page
+title: More Meaningful Outcomes with EPSS Aggregation
+date: 2024-08-14 15:01:53-0600
+description: This post discusses how aggregating EPSS scores can yield more meaningful outcomes.
+keywords: Cybersecurity, vulnerability management, risk assessment, risk management, exploitation, risk, mathematics, statistics
+math: true
+---
+<hr/>
+<h2 class="center">Aggregated EPSS Scores as a Risk Metric: Rationale, Method, and Value</h2>
+<br/>
+<p>
+    Vulnerability management has long struggled with a mismatch between what is easy to measure and what is
+    operationally decisive. Severity metrics such as the Common Vulnerability Scoring System (CVSS) provide structured,
+    reproducible estimates of technical impact and exploitability conditions, but <em>they were not designed to
+    represent
+    the likelihood that exploitation will occur in the wild</em> within a particular decision horizon (National
+    Institute of
+    Standards and Technology [NIST], n.d.). As a consequence, organizations routinely confront an abundance of “high” or
+    “critical” findings that exceed remediation capacity, producing prioritization strategies that are either ad hoc or
+    dominated by severity alone. This problem is fundamentally one of decision-making under constraints: defenders need
+    a way to convert vulnerability inventories into a small set of actions that measurably reduces risk.
+</p>
+<p>
+    The Exploit Prediction Scoring System (EPSS) addresses an important part of this gap by providing a
+    probability-oriented signal. EPSS is an open, data-driven model that estimates the probability that exploitation
+    activity will be observed for a given CVE over a near-term horizon, commonly described as the next 30 days (FIRST,
+    n.d.-a; FIRST, n.d.-b). Unlike severity measures, EPSS is explicitly framed as likelihood, enabling defenders to
+    treat vulnerabilities as stochastic contributors to adverse outcomes. Once likelihood is quantified per
+    vulnerability, it becomes natural—and analytically useful—to ask how multiple vulnerabilities combine into an asset-
+    or service-level risk measure. Aggregating EPSS scores across the vulnerabilities affecting a host (or application,
+    or business service) is a principled method for translating “a list of issues” into a single, comparable indicator
+    of near-term exploit exposure. When used carefully, aggregated EPSS is a good idea because it improves
+    prioritization efficiency, supports risk communication and governance, and aligns vulnerability management with
+    established risk assessment concepts grounded in likelihood and impact.
+</p>
+<hr/>
+<h2 class="center">EPSS as a Likelihood Signal Suitable for Quantitative Reasoning</h2>
+<br/>
+<p>
+    EPSS’s conceptual contribution is straightforward: it treats exploitation as an empirical phenomenon that can be
+    modeled from observed signals and then expressed as a probability. FIRST describes EPSS as a daily estimate of the
+    probability of exploitation activity being observed in the next 30 days (FIRST, n.d.-b). The public EPSS dataset and
+    API make these probabilities operationally accessible for automation and continuous reassessment (FIRST, n.d.-c).
+    The availability of a probabilistic output is not merely a convenience; it changes the structure of the decision
+    problem. A probability output supports expected-value reasoning, threshold policies (e.g., “patch anything above X
+    within Y days”), and portfolio-like comparisons across business units, environments, and asset classes.
+</p>
+<p>
+    Critically, EPSS does not replace severity; it complements it. CVSS is well suited for consistent, repeatable
+    severity scoring and for communicating the technical magnitude of potential harm under exploitation (NIST, n.d.).
+    However, likelihood and impact are distinct concepts in risk analysis. NIST’s risk assessment guidance emphasizes
+    that risk is typically characterized by the likelihood of adverse events and their potential impact (NIST, 2012).
+    EPSS provides a practical likelihood proxy for exploitation activity; CVSS and local business context provide
+    impact. Aggregation becomes meaningful in this framework because the object of interest in governance is rarely “a
+    CVE” in isolation. Governance questions are typically asset- or service-oriented: which systems are most exposed,
+    which environments are drifting upward in risk, and which remediation initiatives will reduce risk the most.
+</p>
+<hr/>
+<h2 class="center">Why Aggregation Is Needed: Risk Exists at the Asset and Service Level</h2>
+<br/>
+<p>
+    A single host is commonly exposed to many vulnerabilities, and attackers need only one viable path to create an
+    incident. Operationally, defenders want to know whether a particular asset represents a comparatively high near-term
+    exploitation risk, and whether remediating a subset of its vulnerabilities materially changes that risk. EPSS is
+    CVE-level; defenders operate at higher levels of abstraction. Aggregation is the bridge.
+</p>
+<p>
+    The logic for aggregation is well-established in reliability engineering and probability theory: when a system can
+    fail by any one of several independent component failures, the probability of at least one failure is one minus the
+    product of the probabilities of no failure for each component (Massachusetts Institute of Technology OpenCourseWare,
+    2005). In vulnerability terms, each vulnerability can be treated as a potential “component” whose exploitation
+    corresponds to an adverse event. If the probability of exploitation for vulnerability $i$ within the horizon is:
+    $$
+    P(\ge 1\ exploit) = 1 - \prod_{i}(1-p_i)
+    $$
+</p>
+<p>
+    This expression is attractive because it is interpretable, monotonic, and sensitive to both the number of
+    vulnerabilities and their probabilities. A host with many moderate-probability vulnerabilities can reasonably be
+    assessed as higher exposure than a host with a single low-probability issue, even if the maximum EPSS on the first
+    host is not extreme. Aggregation also discourages a common failure mode of severity-driven programs: “treating a
+    host as safe” because its top vulnerability is below a threshold, while ignoring the combined exposure created by
+    many smaller risks.
+</p>
+<hr/>
+<h2 class="center">Aggregated EPSS Improves Prioritization Under Constraint</h2>
+<p>
+    In practice, remediation resources are scarce relative to the volume of known vulnerabilities. EPSS was developed
+    precisely to support better prioritization by focusing attention on vulnerabilities more likely to be exploited in
+    the wild (FIRST, n.d.-a; Jacobs et al., 2019). Aggregation extends that benefit from the vulnerability level to the
+    asset and service levels that remediation teams actually schedule, patch, harden, segment, or decommission.
+</p>
+<p>
+    Aggregated EPSS supports prioritization in at least three ways.
+</p>
+<ol style="list-style-type: none">
+    <li>
+        <p>
+            First, it enables comparative ranking across assets. A single “host EPSS exposure” number (computed
+            consistently) can be used to triage which systems should enter an urgent remediation queue, which can be
+            handled in routine maintenance, and which can be accepted temporarily with compensating controls. This is
+            especially valuable in heterogeneous environments where different systems have different vulnerability
+            densities.
+        </p>
+    </li>
+    <li>
+        <p>
+            Second, it supports marginal analysis. Because the aggregation formula is sensitive to changes in any
+            $p_i$, defenders can quantify the risk reduction achieved by remediating a subset of vulnerabilities. This
+            directly supports cost-benefit prioritization: patch the vulnerabilities that most reduce the host-level
+            aggregated probability, not merely those that look severe.
+        </p>
+    </li>
+    <li>
+        <p>
+            Third, aggregation can be aligned with “known exploitation” evidence. CISA’s Known Exploited Vulnerabilities
+            (KEV) Catalog provides an authoritative list of vulnerabilities observed to be exploited in the wild and is
+            intended to help organizations keep pace with threat activity (Cybersecurity and Infrastructure Security
+            Agency [CISA], n.d.). EPSS provides probabilistic forecasts; KEV provides confirmed exploitation. When both
+            are used together, aggregation can be tuned to emphasize high-confidence, high-likelihood subsets (e.g.,
+            requiring immediate action for KEV-listed vulnerabilities while using aggregated EPSS to manage the
+            remaining exposure). This combined approach is consistent with the broader best practice of integrating
+            multiple, complementary signals rather than treating any single score as a full risk model.
+        </p>
+    </li>
+</ol>
+<hr/>
+<h2 class="center">Aggregation Supports Governance, Communication, and Trend Monitoring</h2>
+<br/>
+<p>
+    Security governance benefits from metrics that are stable enough to track and comparable enough to inform resource
+    allocation. EPSS is updated frequently and described by FIRST as refreshed daily (FIRST, n.d.-b). That cadence means
+    aggregated measures can function as near-real-time indicators of exploit likelihood exposure across an enterprise.
+</p>
+<p>
+    At the executive level, reporting “we have 12,000 vulnerabilities” is less actionable than reporting that “the top
+    50 business-critical assets have a materially higher near-term exploitation probability than the rest,” especially
+    if that metric can be trended and tied to remediation initiatives. Aggregated EPSS also supports benchmarking across
+    similar asset classes (e.g., internet-exposed services vs. internal-only systems) and evaluating the effect of
+    control investments (e.g., patch automation, asset inventory accuracy, segmentation). Because NIST risk guidance
+    situates risk assessments as decision support for leaders determining appropriate courses of action (NIST, 2012),
+    aggregated EPSS is valuable insofar as it transforms technical findings into decision-relevant summaries.
+</p>
+<h2 class="center">Addressing Key Objections: Independence, Correlation, and Interpretation</h2>
+<p>
+    The primary methodological criticism of aggregated EPSS is the independence assumption. Vulnerabilities are not
+    always independent: exploitation of one weakness can enable exploitation of another (privilege escalation chains),
+    and exploit campaigns can target families of products simultaneously. Treating events as independent can therefore
+    overestimate risk in some contexts and underestimate it in others. The correct response is not to abandon
+    aggregation but to apply it with explicit bounds and sensitivity reasoning.
+</p>
+<p>
+    A defensible practice is to report at least two complementary summaries: (1) the maximum EPSS among vulnerabilities
+    on the asset (a conservative lower-complexity bound under perfect correlation), and (2) the independence-based
+    aggregate $P(\ge 1\ exploit) = 1 - \prod(1-p)$ (an upper-leaning estimate when correlations are positive).
+    Even when neither bound is exact, the pair provides an interpretable bracket for decision-making, and the
+    independence aggregate remains useful for ranking assets consistently—often the practical goal in triage—provided
+    the same method is applied uniformly.
+</p>
+<p>
+    A second objection concerns what EPSS “means.” EPSS is described as the probability of observing exploitation
+    activity for a vulnerability in the wild within the horizon (FIRST, n.d.-b). That probability is not automatically
+    the probability that a particular host will be exploited; host-specific exposure depends on internet reachability,
+    configuration, mitigations, attacker incentives, and control effectiveness. Aggregated EPSS should therefore be
+    framed as a measure of external exploitation pressure or baseline exploit likelihood associated with the
+    vulnerabilities present, not as a direct incident probability. In risk assessment terms, it is a component of
+    likelihood estimation that must be combined with exposure and impact context (NIST, 2012). This limitation is
+    compatible with the claim that aggregation is a good idea: the value of a metric depends on how it is interpreted
+    and used in a broader decision process.
+</p>
+<hr/>
+<h2 class="center">Conclusion</h2>
+<br/>
+<p>
+    Aggregating EPSS scores across the vulnerabilities affecting an asset is a good idea because it brings vulnerability
+    management closer to risk analysis: it expresses exposure in probabilistic terms, supports quantitative
+    prioritization under constraint, enables trend-based governance, and provides a coherent bridge between CVE-level
+    data and asset-level decisions. The aggregation method follows well-understood probability reasoning for “at least
+    one event” and can be made robust by presenting bounds and acknowledging correlation and exposure considerations.
+    When combined with severity (impact) and evidence-based exploitation signals such as CISA’s KEV, aggregated EPSS
+    offers a defensible, academically grounded approach for allocating limited remediation effort to where it reduces
+    near-term exploitation risk the most.
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<br/>
+<p>
+    Cybersecurity and Infrastructure Security Agency. (n.d.). Known Exploited Vulnerabilities Catalog. U.S. Department
+    of Homeland Security. https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+</p>
+<p>
+    FIRST. (n.d.-a). Exploit Prediction Scoring System (EPSS). https://www.first.org/epss/
+</p>
+<p>
+    FIRST. (n.d.-b). The EPSS model. https://www.first.org/epss/model
+</p>
+<p>
+    FIRST. (n.d.-c). EPSS API. https://www.first.org/epss/api
+</p>
+<p>
+    Jacobs, J., Romanosky, S., Edwards, B., Roytman, M., & Adjerid, I. (2019). Exploit Prediction Scoring System (EPSS)
+    (arXiv:1908.04856). arXiv. https://arxiv.org/abs/1908.04856
+</p>
+<p>
+    Massachusetts Institute of Technology OpenCourseWare. (2005). Probability and statistics in engineering (reliability
+    appendix) (Course materials).
+    https://ocw.mit.edu/courses/1-151-probability-and-statistics-in-engineering-spring-2005/
+</p>
+<p>
+    National Institute of Standards and Technology. (2012). Guide for conducting risk assessments (SP 800-30 Rev. 1).
+    https://csrc.nist.gov/pubs/sp/800/30/r1/final
+</p>
+<p>
+    National Institute of Standards and Technology. (n.d.). Vulnerability metrics (CVSS). National Vulnerability
+    Database. https://nvd.nist.gov/vuln-metrics/cvss
+</p>
+<hr/>
+<h2 class="center">PostScript: An Example Aggregation Script</h2>
+<p>
+    The following is a basic example of EPSS aggregation. Ideally, the aggregation would be much richer and
+    based on the full cyber kill chain applied to an internal ecosystem.  But to get started, something simple like
+    this script can launch an initiative to make better decisions from EPSS data:
+</p>
+{% gist 4e448e38af696a1cb2f6717b00dcaef4 %}
+<br/><br/>
+<p>
+Happy Hacking!<br/>
+<br/>
+Sam
+</p>

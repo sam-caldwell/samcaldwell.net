@@ -9,6 +9,14 @@ A simple Jekyll site for samcaldwell.net. Local development is containerized wit
 - Stop container: `make stop`
 - Network binding: dev ports bind to `127.0.0.1` by default via `-p 127.0.0.1:HOST:CONTAINER` so the site is only reachable locally. To override (e.g., for LAN testing), run `BIND_ADDRESS=0.0.0.0 make dev`.
 
+## Gists
+
+- Enabled via `jekyll-gist` (configured in Gemfile and `_config.yml`).
+- Usage in posts/pages:
+  - By ID only: `{% gist 1234567890abcdef %}`
+  - Specific file in a gist: `{% gist 1234567890abcdef file.rb %}`
+  - Works in Markdown and HTML posts.
+
 ## Create a New Blog Post
 
 - One-liner: `make new TITLE="My First Post"`

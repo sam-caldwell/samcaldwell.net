@@ -12,7 +12,7 @@ RUN apt-get update -y \
      pkg-config \
   && rm -rf /var/lib/apt/lists/* \
   && gem install --no-document jekyll -v "~> 4.3" \
-  && gem install --no-document webrick jekyll-seo-tag jekyll-sitemap
+  && gem install --no-document webrick jekyll-seo-tag jekyll-sitemap jekyll-gist
 
 WORKDIR /site
 
@@ -29,15 +29,7 @@ EXPOSE 4000 35729
 ENV JEKYLL_ENV=development \
     JEKYLL_CACHE_DIR=/srv/.jekyll-cache
 
-# Serve with livereload, watching the mounted /site
-CMD [ \
-  "jekyll", "serve", \
-  "--livereload", \
-  "--force_polling", \
-  "--host", "0.0.0.0", \
-  "--port", "4000", \
-  "--livereload-port", "35729", \
-  "--source", "/site", \
-  "--destination", "/srv/_site", \
-  "--trace" \
-]
+# Runtime entrypoint: ensure gems are installed, then run Jekyll via bundler
+COPY docker/dev-entrypoint.sh /usr/local/bin/dev-entrypoint
+RUN chmod +x /usr/local/bin/dev-entrypoint
+CMD ["/usr/local/bin/dev-entrypoint"]
