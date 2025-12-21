@@ -43,7 +43,7 @@ math: true
 <br/>
 <p>
     The keywords MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY indicate requirement levels as defined for technical
-    standards.
+    standards (Bradner, 1997; Leiba, 2017).
 </p>
 <hr/>
 <h2 class="center">Definitions and Notations</h2>
@@ -406,8 +406,176 @@ math: true
 <h3>Feasibility: existence of a valid solution for conforming blocks</h3>
 <br/>
 <p>
-    For any block produced by a conforming CRSCE compressor, there exists at least one valid $CSM$: the $CSM$ constructed
+    For any block produced by a conforming CRSCE compressor, there exists at least one valid $CSM$: the $CSM$
+    constructed
     during compression from the input stream. The compressor computes and stores cross-sums and $LH$ from that $CSM$
     (Caldwell, 2024). Therefore, the constraint system is satisfiable for conforming data; decompression is a search for
     that satisfying assignment.
+</p>
+<p>
+    The constraint structure has strong redundancy: each variable participates in multiple constraints (row, column, one
+    diagonal family, and one anti-diagonal family). Such redundancy is a standard condition under which iterative
+    constraint propagation and belief propagation heuristics often perform well in large structured systems, even when
+    exact inference is intractable in the worst case (Kschischang et al., 2001; Wainwright & Jordan, 2008). Moreover, DE
+    provides provably correct forced assignments that reduce degrees of freedom before stochastic or iterative steps are
+    invoked.
+</p>
+<p>
+    This does not claim worst-case polynomial-time guarantees; rather, it supports a defensible engineering claim: given
+    CRSCE’s highly constrained structure and deterministic oracle, a hybrid DE + message-passing solver has a
+    significant likelihood of recovering the original CSM for compressor-generated instances, especially when parameters
+    are tuned empirically (Caldwell, 2024).
+</p>
+<br/>
+<h3>Time model (explicit)</h3>
+<br/>
+<p>
+    A conservative engineering time model is to treat a full decode attempt as dominated by operations proportional to
+    $s^3$ per block, reflecting repeated passes across $O(S^2)$ variables or $O(s)$ iterations or phases (Caldwell,
+    2025a).
+    Under the simplifying assumptions of:
+</p>
+<ul>
+    <li>an 8-core CPU at 3.5 GHz,</li>
+    <li>fully utilized across cores, and</li>
+    <li>with negligible I/O and no memory bandwidth bottleneck,</li>
+</ul>
+<p>
+    the effective operation rate is:
+    $$
+    T = 8 x 3.5 x 10^9 = 2.8 x 10^10 ops/s
+    $$
+    Then the per-block decompression time estimate is:
+    $$
+    T_{decomp} \approx \frac{s^3}{T} \times 10^3\ ms
+    $$
+    For $s=511$:
+    $$
+    T_{decomp} \approx \frac{511^3}{2.8 x 10^{10} ops/s} \times 10^3\ ms \approx 4.77 ms/block.
+    $$
+    This yields an expected throughput on the order of:
+    $$
+    \frac{32,640}{4.77\ ms} \approx 6.8\ MB/s
+    $$
+    per the stated assumptions (Caldwell, 2025b).
+</p>
+<hr/>
+<h2 class="center">Performance targets and scaling rationale</h2>
+<br/>
+<p>
+    CRSCE is designed as a fixed-block, random-access-friendly format where performance can be improved by:
+</p>
+<ul>
+    <li>batching blocks,</li>
+    <li>parallelizing across blocks, and</li>
+    <li>accelerating iterative steps on GPU-like architectures.</li>
+</ul>
+<p>
+    A prototype plan targeting sub-millisecond block times via parallel implementations and tuned iteration parameters
+    is consistent with the algorithm’s structure (Caldwell, 2025a). From a standards standpoint, these targets are
+    non-normative, but they support a defensible feasibility claim: there exists a straightforward path to performance
+    improvement beyond the conservative $s^3$ CPU model through parallelism and hardware acceleration.
+</p>
+<hr/>
+<h2 class="center">Security and Robustness Considerations</h2>
+<ol>
+    <li>
+        <strong>Integrity verification:</strong> $LH$ depends on SHA-256 correctness; implementations MUST match the
+        standard exactly (NIST, 2015).
+    </li>
+    <li>
+        <strong>No confidentiality:</strong>
+        <p>
+            CRSCE does not provide secrecy, though it may enhance secrecy when used with robust encryption as discussed
+            earlier.
+        </p>
+    </li>
+    <li>
+        <strong>Fail-hard safety:</strong>
+        <p>
+            Silent acceptance of invalid blocks constitutes data corruption; fail-hard behavior is required (Caldwell,
+            2024).
+        </p>
+    </li>
+    <li>
+        <strong>Untrusted input handling</strong>
+        <p>
+            Decoders SHOULD validate header fields, block sizes, and bounds before allocation and processing
+        </p>
+    </li>
+</ol>
+<hr/>
+<h2 class="center">Reference Pseudocode</h2>
+<br/>
+<h3>Block decoding contract</h3>
+<br/>
+<code>
+    DECODE_BLOCK(payload_bits):<br/>
+    (LH, LSM, VSM, DSM, XSM, pad) = PARSE(payload_bits)<br/>
+    if pad != 0000:<br/>
+    MAY error<br/>
+    <br/>
+    CSM = RECONSTRUCT_IMPLEMENTATION_DEFINED(LSM, VSM, DSM, XSM, LH)<br/>
+    if CSM not found:<br/>
+    ERROR<br/>
+    <br/>
+    if not CROSS_SUMS_MATCH(CSM, LSM, VSM, DSM, XSM):<br/>
+    ERROR<br/>
+    if not LH_MATCH(CSM, LH):<br/>
+    ERROR<br/>
+    <br/>
+    return CSM<br/>
+</code>
+<br/>
+<h3>Deterministic recovery of bytes from a valid CSM</h3>
+<br/>
+<code>
+    CSM_TO_BYTES(CSM):<br/>
+    bits = traverse row-major over r=0..510, c=0..510<br/>
+    pack each 8 bits MSB-first into a byte<br/>
+    return bytes<br/>
+</code>
+<p>
+    Padding removal for the final block is performed using <code>original_file_size_bytes</code> (Caldwell, 2024).
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<br/>
+<p>
+    Bradner, S. (1997). Keywords for use in RFCs to indicate requirement levels (RFC 2119). RFC Editor.
+    https://www.rfc-editor.org/rfc/rfc2119
+</p>
+<p>
+    Caldwell, S. (2024, December 3). Cross-Sums Compression and Expansion (CRSCE) Specification (working document).
+    samcaldwell.net. https://samcaldwell.net/2024/12/03/cross-sums-compression-and-expansion-crsce/
+</p>
+<p>
+    Caldwell, S. (2025a, June 28). CRSCE GPU Decompression Implementation Plan (working document).
+</p>
+<p>
+    Caldwell, S. (2025b). Target Benchmarks (working document).
+</p>
+<p>
+    Herman, G. T., & Kuba, A. (Eds.). (1999). Discrete tomography: Foundations, algorithms, and applications.
+    Birkhäuser.
+</p>
+<p>
+    Kschischang, F. R., Frey, B. J., & Loeliger, H.-A. (2001). Factor graphs and the sum-product algorithm. IEEE
+    Transactions on Information Theory, 47(2), 498–519. https://www.mit.edu/~6.454/www_fall_2002/lizhong/factorgraph.pdf
+</p>
+<p>
+    Leiba, B. (2017). Ambiguity of uppercase vs lowercase in RFC 2119 key words (RFC 8174). RFC Editor.
+    https://www.rfc-editor.org/rfc/rfc8174
+</p>
+<p>
+    National Institute of Standards and Technology. (2015). Secure Hash Standard (SHS) (FIPS PUB 180-4). U.S. Department
+    of Commerce. https://csrc.nist.gov/pubs/fips/180-4/upd1/final
+</p>
+<p>
+    Pearl, J. (1988). Probabilistic reasoning in intelligent systems: Networks of plausible inference. Morgan Kaufmann.
+</p>
+<p>
+    Wainwright, M. J., & Jordan, M. I. (2008). Graphical models, exponential families, and variational inference.
+    Foundations and Trends in Machine Learning, 1(1–2), 1–305.
+    https://people.eecs.berkeley.edu/~jordan/papers/wainwright-jordan-fnt.pdf
 </p>
