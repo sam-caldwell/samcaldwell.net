@@ -8,7 +8,7 @@ LIVERELOAD_PORT ?= 35729
 # Bind published ports to this host address (default: loopback only)
 BIND_ADDRESS ?= 127.0.0.1
 
-.PHONY: dev build stop post joke
+.PHONY: dev build stop post joke book
 
 build:
 	@docker build -t $(IMAGE) .
@@ -88,5 +88,37 @@ joke:
 	  echo '---'; \
 	  echo; \
 	  echo '<!-- Write your joke below. -->'; \
+	} > "$$FILE"; \
+	echo "Created $$FILE"
+
+# Create a new book page under books/
+# Usage: make book TITLE="Book Title"
+book:
+	@TITLE="$(TITLE)"; \
+	if [ -z "$$TITLE" ]; then \
+	  printf "Title: "; read -r TITLE; \
+	fi; \
+	if [ -z "$$TITLE" ]; then \
+	  echo "Error: TITLE is required. Use: make book TITLE='My Book'"; \
+	  exit 1; \
+	fi; \
+	SLUG=$$(printf "%s" "$$TITLE" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$$//g'); \
+	DATE=$$(date +%Y-%m-%d); \
+	TIME=$$(date +%H:%M:%S%z); \
+	FILE="books/$${SLUG}.html"; \
+	mkdir -p books; \
+	if [ -e "$$FILE" ]; then \
+	  echo "Error: $$FILE already exists"; \
+	  exit 1; \
+	fi; \
+	{ \
+	  echo '---'; \
+	  echo 'layout: page'; \
+	  printf 'title: %s\n' "$$TITLE"; \
+	  printf 'date: %s %s\n' "$$DATE" "$$TIME"; \
+	  echo 'description:'; \
+	  echo '---'; \
+	  echo; \
+	  echo '<!-- Write your book notes below. -->'; \
 	} > "$$FILE"; \
 	echo "Created $$FILE"

@@ -43,6 +43,20 @@ A simple Jekyll site for samcaldwell.net. Local development is containerized wit
 
 - The list is available at `/dashboards/` and is linked in the nav.
 
+## Books
+
+- Add books as pages under `books/` (e.g., `books/my-book.html`).
+- One-liner: `make book TITLE="My Book"`
+- Interactive: `make book` and enter a title when prompted
+- Include front matter so Jekyll processes it, for example:
+
+  ---
+  title: My Book
+  description: Optional short summary
+  ---
+
+- The list is available at `/books/` and is linked in the nav.
+
 ## Create a New Blog Post
 
 - One-liner: `make post TITLE="My First Post"`
