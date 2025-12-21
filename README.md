@@ -17,10 +17,24 @@ A simple Jekyll site for samcaldwell.net. Local development is containerized wit
   - Specific file in a gist: `{% gist 1234567890abcdef file.rb %}`
   - Works in Markdown and HTML posts.
 
+## Jokes
+
+- Add jokes as pages under `jokes/` (e.g., `jokes/my-joke.html`).
+- One-liner: `make joke TITLE="My Joke"`
+- Interactive: `make joke` and enter a title when prompted
+- Each file must include front matter so Jekyll processes it, for example:
+
+  ---
+  title: My Joke
+  description: Optional short summary
+  ---
+
+- The list is available at `/jokes/` and is linked in the nav.
+
 ## Create a New Blog Post
 
-- One-liner: `make new TITLE="My First Post"`
-- Interactive: `make new` and enter a title when prompted
+- One-liner: `make post TITLE="My First Post"`
+- Interactive: `make post` and enter a title when prompted
 - What it does:
   - Creates `_posts/YYYY-MM-DD-my-first-post.md`
   - Adds front matter (`layout: page`, `title`, `date`, `description`, `tags`)
@@ -40,6 +54,7 @@ A simple Jekyll site for samcaldwell.net. Local development is containerized wit
 - `_posts/` — blog posts named `YYYY-MM-DD-title.md`
 - `_data/navigation.yml` — nav items rendered by `_includes/nav.html`
 - `css/`, `js/`, `img/` — static assets
+- `jokes/` — individual joke pages (listed at `/jokes/`)
 - `.well-known/` — included for deployment via `_config.yml`
 
 ## Configuration

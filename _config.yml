@@ -22,6 +22,12 @@ defaults:
       type: "pages"
     values:
       layout: page
+  # Pages under jokes/ act as joke posts
+  - scope:
+      path: "jokes"
+      type: "pages"
+    values:
+      layout: page
   # Blog posts use the same page layout (global template)
   - scope:
       path: ""

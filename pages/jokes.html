@@ -1,0 +1,33 @@
+---
+layout: page
+title: jokes
+description: A list of jokes collected here.
+---
+
+{% assign joke_pages = site.pages | where_exp: "p", "p.path contains 'jokes/'" %}
+{% assign jokes = joke_pages | sort: 'title' %}
+
+{% if jokes and jokes.size > 0 %}
+<ul class="list-unstyled">
+  {% for j in jokes %}
+  <li class="mb-2">
+    <a href="{{ j.url | relative_url }}">{{ j.title | default: j.name | default: j.url }}</a>
+    {% if j.date %}
+      <span class="text-muted small">— {{ j.date | date: "%Y-%m-%d" }}</span>
+    {% endif %}
+    {% if j.description %}
+      <div class="text-muted small">{{ j.description }}</div>
+    {% endif %}
+  </li>
+  {% endfor %}
+  </ul>
+{% else %}
+<p>No jokes found yet. Add files under <code>jokes/</code> with front matter, for example:</p>
+<pre><code>---
+title: My First Joke
+description: A short quip.
+---
+Why did the function cross the road? To return to the caller.
+</code></pre>
+{% endif %}
+
