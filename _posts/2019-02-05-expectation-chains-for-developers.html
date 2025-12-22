@@ -1,0 +1,307 @@
+---
+layout: page
+title: Expectation Chains for Developers
+date: 2019-02-05 00:00:00-0600
+description: This post presents expectation chains for the software developer, SRE, DevOps and other technical roles.
+keywords: expectation chains, observability, monitoring, alerting, logging, tracing, metrics, dashboards, sre, devops, developer, tools, uptime, reliability, performance
+---
+<br/>
+<hr/>
+<h2 class="center">Introduction</h2>
+<br/>
+<p>
+    Expectation chains are easiest to implement when you treat every dependency edge as an explicit, testable contract:
+    a consumer makes a request of a provider, and that request has measurable success criteria across availability,
+    reliability, and performance. The “chain” emerges when you apply the same contract pattern recursively: your public
+    API’s expectations depend on internal services; those services depend on databases, queues, identity, networks, and
+    sometimes humans and vendors. Technically, the work is (1) defining the contracts, (2) emitting telemetry that
+    evaluates them, and (3) wiring storage, query, and visualization so engineers can see which link is breaking the
+    promised value.
+</p>
+<hr/>
+<br/>
+<h2 class="center">Define expectation edges as first-class telemetry targets</h2>
+<br/>
+<p>
+    Start by enumerating service interactions, not hosts. For each interaction (Consumer → Provider), define:
+</p>
+<ul>
+    <li>Operation: a stable name (e.g., POST /checkout, Auth.ValidateToken, Payment.Authorize).</li>
+    <li>Availability probe: “can the consumer reach the provider endpoint” (synthetic or passive).</li>
+    <li>Reliability probe: “did the provider return the correct output for this input” (domain-aware).</li>
+    <li>Performance probe: “did it complete under threshold T” (p95/p99 windows).</li>
+</ul>
+<p>
+    Each probe must map to a small set of concrete signals:
+</p>
+<ul>
+    <li>Metrics for continuous scoring and alerting.</li>
+    <li>Traces for causal diagnosis across hops.</li>
+    <li>Logs for evidence (inputs/outputs, error details) when metrics/traces are insufficient.</li>
+</ul>
+<p>
+    OpenTelemetry (OTel) is the glue: it standardizes how you represent spans, attributes, and signals so downstream
+    systems can correlate them (OpenTelemetry, n.d.-a). A span is your canonical representation of “an operation
+    happened,” with timing, attributes, events, and parent/child relationships—exactly what you need to build chain
+    edges with causality (OpenTelemetry, n.d.-a).
+</p>
+<hr/>
+<br/>
+<h2 class="center">A practical contract schema (engineer-friendly)</h2>
+<br/>
+<p>
+    For each edge, store an “Expectation ID” (a stable string) and attach it everywhere:
+</p>
+<ul>
+    <li>Metric labels/tags: expectation_id, consumer, provider, operation</li>
+    <li>Span attributes: expectation.id, service.name, rpc.method / http.route, error.type</li>
+    <li>Log fields: expectation_id, trace_id, span_id, request_id</li>
+</ul>
+<p>
+    This ID becomes the join key across InfluxDB (metrics), Tempo/Jaeger (traces), and Athena (logs).
+</p>
+<hr/>
+<br/>
+<h2 class="center">Instrument services so expectation scoring is cheap and consistent</h2>
+<br/>
+<h3>Traces: make the chain visible</h3>
+<br/>
+<p>
+    Instrument all services with OTel SDKs and ensure context propagation is correct across HTTP/gRPC and async
+    boundaries. Your goal is a single trace showing the end-to-end path so you can attribute failures to the right link.
+    OTel defines traces as collections of spans across process boundaries (OpenTelemetry, n.d.-a).
+</p>
+<p>
+    Implementation pattern:
+</p>
+<ul>
+    <li>Create/continue a span at the edge (ingress) and at each downstream call (egress).</li>
+    <li>Put expectation.id on the egress span that represents the specific dependency call.</li>
+    <li>Record status consistently (success/failure), and include error attributes/events for reliability debugging.
+    </li>
+</ul>
+<h3>Metrics: score availability, reliability, performance per edge</h3>
+<p>
+    Emit RED metrics (Rate, Errors, Duration) per dependency edge. Even if you also emit “service-level” metrics,
+    expectation chains need edge-level metrics because the question is “which dependency is breaking the promise.”
+</p>
+<p>Examples (per <code>expectation_id</code>):</p>
+<ul>
+    <li><code>requests_total{...}</code></li>
+    <li><code>errors_total{...}</code> (or requests_total with status_class)</li>
+    <li><code>latency_ms_bucket{...}</code> (histograms) or summaries depending on your stack</li>
+</ul>
+<p>Then compute:</p>
+<ul>
+    <li>Availability = % of probes with successful connectivity (or % of requests that reached provider and got any
+        response).
+    </li>
+    <li>Reliability = % of requests that met correctness criteria (often “non-5xx” is not enough; add domain checks
+        where feasible).
+    </li>
+    <li>Performance = % of requests below threshold T, or percentile-based SLO compliance.</li>
+</ul>
+<h3>Logs: keep them queryable and correlation-friendly</h3>
+<p>
+    Logs become far more valuable when you can pivot from a broken expectation to the exact trace, then to the exact
+    error evidence. That requires structured logs with:
+</p>
+<ul>
+    <li><code>trace_id</code>/<code>span_id</code></li>
+    <li><code>expectation_id</code></li>
+    <li>domain identifiers (order id, tenant, feature flag) with privacy controls</li>
+</ul>
+<p>
+    Athena is a practical fit when you land logs into S3 and query them with SQL without running log infrastructure
+    yourself. Athena is explicitly designed to query data in S3 using standard SQL and is serverless (AWS, n.d.-a). That
+    makes it a good “forensics” layer for expectation failures that need deep dives.
+</p>
+<hr/>
+<br/>
+<h2 class="center">Build the telemetry pipeline: OTel Collector as the normalization and routing hub</h2>
+<br/>
+<p>
+    Put the OpenTelemetry Collector between producers and backends. The collector can receive OTLP from your services,
+    perform processing (batching, filtering, tail sampling), and export to multiple destinations (OpenTelemetry,
+    n.d.-a). Architecturally, that gives you one place to enforce:
+</p>
+<ul>
+    <li>attribute normalization (<code>expectation.id</code> always present on egress spans)</li>
+    <li>sampling policy (keep error traces, sample successes)</li>
+    <li>routing by signal (metrics → InfluxDB; traces → Tempo/Jaeger; logs → S3 pipeline)</li>
+</ul>
+<h3>Backends in your toolchain</h3>
+<ul>
+    <li>
+        InfluxDB for time-series metrics storage and fast rollups. InfluxDB’s line protocol and time-series model map
+        cleanly to edge-scored metrics (InfluxData, n.d.-a).
+    </li>
+    <li>
+        Tempo for high-scale, cost-efficient trace storage with object storage dependency profile, and tight Grafana
+        integration (Grafana Labs, n.d.-a; Grafana Labs, n.d.-b).
+    </li>
+    <li>
+        Jaeger as a trace query/UI system (or as an additional/legacy trace target). Jaeger is organized around
+        collector/query roles and is widely used for end-to-end distributed tracing (Jaeger, 2025; Grafana Labs,
+        n.d.-c).
+    </li>
+    <li>
+        Athena for log and event forensics in S3 using SQL, plus operational simplicity (AWS, n.d.-a).
+    </li>
+    <li>
+        Grafana as the unifying UI: dashboards for metrics, trace views (Tempo/Jaeger), and links out to log queries.
+        Grafana supports built-in Jaeger and InfluxDB data sources (Grafana Labs, n.d.-c; Grafana Labs, n.d.-d).
+    </li>
+</ul>
+<h3>Make Grafana “expectation-native” (dashboards, drilldowns, alerts)</h3>
+<p>
+    Your Grafana experience should start with the chain, not with hosts.
+</p>
+<h3>Dashboards: a chain-first layout</h3>
+<p>
+    Create a dashboard per top-level customer expectation (e.g., “Checkout completes”), with:
+</p>
+<ol>
+    <li>Overall score (availability/reliability/performance compliance) computed from edge metrics.</li>
+    <li>Dependency edge table sorted by worst compliance: expectation_id, provider, p95 latency, error rate.</li>
+    <li>Drilldown links:
+        <ul>
+            <li>From an edge row → trace search in Tempo/Jaeger filtered by expectation.id.</li>
+            <li>From a trace → log queries in Athena filtered by trace_id and time window.</li>
+        </ul>
+    </li>
+</ol>
+<p>
+    Tempo explicitly supports linking tracing data with logs and metrics, and generating metrics from spans—use that to
+    bridge gaps where application metrics are incomplete (Grafana Labs, n.d.-a). If you keep Jaeger, Grafana has
+    built-in support as a data source, which keeps the “single pane” workflow (Grafana Labs, n.d.-c).
+</p>
+<h3>Alerts: fire on broken promises, route to owners</h3>
+<p>
+    Alert on SLO burn or sustained failure per expectation edge, and route by ownership:
+</p>
+<ul>
+    <li>provider_team label on metrics</li>
+    <li>on-call schedules per team</li>
+    <li>escalation policies tied to business criticality</li>
+</ul>
+<p>
+    This avoids the classic failure mode where a global “error rate high” alert triggers everyone, while the real issue
+    is one dependency link.
+</p>
+<hr/>
+<br/>
+<h2 class="center">Concrete example: implementing a checkout expectation chain</h2>
+<br/>
+<p>
+    Assume a request path: <code>API Gateway → Checkout Service → Auth Service → Payment Service → Orders DB</code>
+</p>
+<p>
+    Define expectations:
+</p>
+<ul>
+    <li><code>E-CHECKOUT-001</code>: Gateway→Checkout POST /checkout</li>
+    <li><code>E-AUTH-010</code>: Checkout→Auth ValidateToken</li>
+    <li><code>E-PAY-020</code>: Checkout→Payment Authorize</li>
+    <li><code>E-DB-030</code>: Checkout→OrdersDB WriteOrder</li>
+</ul>
+<p>
+    Instrumentation rules:
+</p>
+<ul>
+    <li>Every egress call creates a span with <code>expectation.id = E-…</code>.</li>
+    <li>Every span has consistent <code>service.name</code> and <code>peer.service</code> attributes.</li>
+    <li>Metrics record <code>requests_total</code>, <code>errors_total</code>, <code>duration_histogram</code>, per
+        <code>expectation.id</code></li>
+</ul>
+<p>
+    Operational workflow:
+</p>
+<ol>
+    <li>Grafana shows <code>E-PAY-20</code> performance compliance dropped (p95 > 800ms)</li>
+    <li>Click the row → Tempo/Jaeger query for <code>expectation.id="E-PAY-020"</code> in last 15 minutes.</li>
+    <li>Trace view shows long spans in <code>Payment.Authorize</code>, concentrated in one region.</li>
+    <li>Pivot to Athena logs for those trace IDs; confirm timeouts and upstream retry storms.</li>
+    <li>Mitigation: reduce retry concurrency at Checkout, open incident with Payment team, and track recovery via the
+        same expectation edge metrics.
+    </li>
+</ol>
+<p>
+    The important part is that your “unit of diagnosis” is the edge contract, so you can say: “Checkout’s customer
+    promise is failing because Checkout’s dependency on Payment is missing the latency expectation,” rather than “CPU is
+    high” or “pods are restarting.”
+</p>
+<hr/>
+<br/>
+<h2 class="center">Data retention and cost controls without breaking the chain</h2>
+<br/>
+<p>
+    Expectation chains generate lots of telemetry, so you must constrain volume:
+</p>
+<ul>
+    <li>Tail-sample traces: keep errors and slow traces, sample successes.</li>
+    <li>Aggregate metrics at the edge: keep high-cardinality tags controlled (<code>expectation_id</code> is bounded;
+        <code>user_id</code> is not).
+    </li>
+    <li>Apply retention to time-series storage. InfluxDB includes internal retention mechanisms for removing data beyond
+        defined periods (InfluxData, n.d.-b).
+    </li>
+    <li>Use Athena/S3 lifecycle policies for logs (hot vs. cold tiers).</li>
+</ul>
+<p>
+    Tempo’s design goal is high-scale with minimal dependencies and object storage friendliness, which is typically
+    cost-effective for trace retention (Grafana Labs, n.d.-a).
+</p>
+<hr/>
+<br/>
+<h2 class="center">The implementation checklist (what to do first)</h2>
+<br/>
+<ul>
+    <li>Model the chain: list top 10 customer journeys, then enumerate dependency edges per journey.</li>
+    <li>Standardize IDs and attributes: define <code>expectation.id</code> and required labels once.</li>
+    <li>Instrument egress calls with OTel: enforce propagation and consistent span status (OpenTelemetry, n.d.-a).</li>
+    <li>Deploy OTel Collector as the routing/processing layer (OpenTelemetry, n.d.-a).</li>
+    <li>Store metrics in InfluxDB, traces in Tempo (and/or Jaeger), logs into S3 queried via Athena (AWS, n.d.-a;
+        Grafana Labs, n.d.-a).
+    </li>
+    <li>Build Grafana dashboards that rank edges by broken promises; wire trace/log drilldowns (Grafana Labs, n.d.-c;
+        Grafana Labs, n.d.-d).
+    </li>
+    <li>Alert on expectation edges and route to owners; tune thresholds based on SLOs, not infrastructure heuristics.
+    </li>
+</ul>
+<hr/>
+<br/>
+<h2 class="center">References</h2>
+<br/>
+<p>
+    Amazon Web Services. (n.d.-a). Amazon Athena documentation. https://docs.aws.amazon.com/athena/
+</p>
+<p>
+    Grafana Labs. (n.d.-a). Grafana Tempo documentation. https://grafana.com/docs/tempo/latest/
+</p>
+<p>
+    Grafana Labs. (n.d.-b). Grafana Tempo (GitHub repository). https://github.com/grafana/tempo
+</p>
+<p>
+    Grafana Labs. (n.d.-c). Jaeger data source (Grafana documentation).
+    https://grafana.com/docs/grafana/latest/datasources/jaeger/
+</p>
+<p>
+    Grafana Labs. (n.d.-d). InfluxDB data source (Grafana documentation).
+    https://grafana.com/docs/grafana/latest/datasources/influxdb/
+</p>
+<p>
+    InfluxData. (n.d.-a). Line protocol (InfluxDB documentation).
+    https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/
+</p>
+<p>
+    InfluxData. (n.d.-b). Data retention in InfluxDB OSS v2.
+    https://docs.influxdata.com/influxdb/v2/reference/internals/data-retention/
+</p>
+<p>
+    Jaeger. (2025). Architecture (Jaeger documentation). https://www.jaegertracing.io/docs/2.13/architecture/
+</p>
+<p>
+    OpenTelemetry. (n.d.-a). Overview (OpenTelemetry specification). https://opentelemetry.io/docs/specs/otel/overview/
+</p>
