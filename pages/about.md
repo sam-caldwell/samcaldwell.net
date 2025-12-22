@@ -2,6 +2,7 @@
 title: About
 permalink: /about/
 description: About Sam Caldwell.
+keywords: about, sam, caldwell, samcaldwell, sam caldwell, software engineer, security engineer, devops engineer, sre, sonora, texas
 ---
 <p>
     I’m a software engineer focused on building secure, reliable systems—usually at the intersection of product
