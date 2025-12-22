@@ -1,0 +1,516 @@
+---
+layout: page
+title: How To Implement Expectation Chains with Grafana
+date: 2023-09-01 00:00:00-0600
+description: This post will show you how to implement expectation chains with Grafana.
+keywords: grafana, expectation chains, observability, monitoring, alerting, observability tools, monitoring tools, alerting tools, observability dashboards, sre, devops, reliability engineering, systems
+---
+
+<hr/>
+<h2 class="center">Goal and Operating Model</h2>
+<br/>
+<p>
+    A Grafana-based “expectations as code” implementation is turn-key when you (1) deploy all underlying infrastructure
+    with CDK, (2) deploy Grafana plus its provisioning directories with Ansible, and (3) add new expectations by
+    committing simple expectation-definition YAML that Ansible compiles into Grafana provisioning artifacts (alert
+    rules, dashboards, routing). Grafana provisioning is designed for managing dashboards and data sources from
+    version-controlled files loaded from a provisioning directory, and Grafana Alerting supports provisioning alerting
+    resources from configuration files at startup (and managing create/update/delete through those files). (Grafana
+    Labs, n.d.-a, n.d.-b)
+</p>
+<p>
+    The examples below are not a full implementation, but they are concrete enough to let a competent technology
+    professional build a reusable solution with predictable conventions.
+</p>
+<hr/>
+<h2 class="center">Repository layout (convention-driven, reusable)</h2>
+<br/>
+<p>Use a single repo (or mono-repo folder) that cleanly separates:</p>
+<ul>
+    <li>CDK app (infra)</li>
+    <li>Ansible (host/service provisioning + expectations compilation)</li>
+    <li>Expectation definitions (your small YAML schema)</li>
+    <li>Grafana provisioning output (generated, not hand-edited)</li>
+</ul>
+<pre>
+    repo/
+    cdk/
+    bin/app.ts
+    lib/expectations-stack.ts
+    ansible/
+    site.yml
+    inventories/
+    prod/hosts.yml
+    roles/
+    grafana_server/
+    grafana_expectations/
+    expectations/
+    chains/
+    checkout/
+    payment_api.yml
+    authz_api.yml
+    generated/
+    grafana/
+    provisioning/
+    datasources/
+    dashboards/
+    alerting/
+    dashboards/
+</pre>
+<p>
+    The <code>generated/</code> directory should be treated like a build artifact: created by Ansible templates and
+    deployed to Grafana.
+</p>
+<hr/>
+<h3>CDK: “complete deployment” infrastructure (example snippets)</h3>
+<p>
+    CDK’s job is to provision network/compute/storage/ingress/identity so Ansible can reliably configure Grafana and
+    drop provisioning files. AWS describes CDK as defining infrastructure in code and provisioning it through
+    CloudFormation. (Amazon Web Services, n.d.)
+</p>
+<h3>Minimal CDK stack shape (EC2 + ALB example)</h3>
+<pre>
+    // file: cdk/lib/expectations-stack.ts
+    import * as cdk from "aws-cdk-lib";
+    import { Construct } from "constructs";
+    import * as ec2 from "aws-cdk-lib/aws-ec2";
+    import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
+    import * as iam from "aws-cdk-lib/aws-iam";
+
+    export class ExpectationsStack extends cdk.Stack {
+      public readonly grafanaInstanceId: string;
+      public readonly grafanaSecurityGroupId: string;
+
+      constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+        super(scope, id, props);
+
+        const vpc = new ec2.Vpc(this, "Vpc", { maxAzs: 2 });
+
+        const sg = new ec2.SecurityGroup(this, "GrafanaSg", {
+          vpc,
+          allowAllOutbound: true,
+        });
+
+        // Ingress: ALB will talk to Grafana on 3000; lock down to VPC/ALB only
+        sg.addIngressRule(ec2.Peer.ipv4(vpc.vpcCidrBlock), ec2.Port.tcp(3000));
+
+        const role = new iam.Role(this, "GrafanaRole", {
+          assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
+        });
+
+        // Example: allow read of SSM parameters for secrets/config
+        role.addManagedPolicy(
+          iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMReadOnlyAccess")
+        );
+
+        const instance = new ec2.Instance(this, "GrafanaInstance", {
+          vpc,
+          securityGroup: sg,
+          instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MEDIUM),
+          machineImage: ec2.MachineImage.latestAmazonLinux2023(),
+          role,
+        });
+
+        const alb = new elbv2.ApplicationLoadBalancer(this, "Alb", {
+          vpc,
+          internetFacing: false, // typical for internal observability
+        });
+
+        const listener = alb.addListener("HttpsListener", {
+          port: 443,
+          // certificate(s) omitted for brevity
+          // open: false (recommended; connect via VPN / private network)
+        });
+
+        listener.addTargets("GrafanaTargets", {
+          port: 3000,
+          targets: [instance],
+          healthCheck: { path: "/api/health" },
+        });
+
+        this.grafanaInstanceId = instance.instanceId;
+        this.grafanaSecurityGroupId = sg.securityGroupId;
+
+        new cdk.CfnOutput(this, "GrafanaAlbDns", { value: alb.loadBalancerDnsName });
+      }
+    }
+</pre>
+<p>What matters for the turn-key flow:</p>
+<ul>
+    <li>CDK outputs identifiers and endpoints</li>
+    <li>Ansible inventory can resolve the EC2 instance (via tags, SSM inventory, or output capture)</li>
+    <li>Grafana will have a stable provisioning path on disk (created by Ansible)</li>
+</ul>
+<hr/>
+<h3>Ansible: install Grafana and enforce provisioning-as-source-of-truth</h3>
+<p>
+    Grafana provisioning reads configuration files from a provisioning directory (dashboards, data sources), and
+    Grafana’s official tutorial emphasizes provisioning from version-controlled configuration files. (Grafana Labs,
+    2025)
+</p>
+<p>
+    For alerting, Grafana supports provisioning alerting resources using configuration files, applied at startup and
+    able to create/update/delete. (Grafana Labs, n.d.-b)
+</p>
+<h3>Playbook entrypoint</h3>
+<pre>
+# file: ansible/site.yml
+- name: Deploy Grafana expectation stack
+  hosts: grafana
+  become: true
+  roles:
+    - role: grafana_server
+    - role: grafana_expectations
+</pre>
+<hr/>
+<h2 class="center:">Role: grafana_server (install + baseline config)</h2>
+<h3>Tasks: install and configure provisioning path</h3>
+<pre>
+# file: ansible/roles/grafana_server/tasks/main.yml
+- name: Install Grafana (package method omitted for brevity)
+  ansible.builtin.package:
+    name: grafana
+    state: present
+
+- name: Create provisioning directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: "0750"
+  loop:
+    - /etc/grafana/provisioning
+    - /etc/grafana/provisioning/datasources
+    - /etc/grafana/provisioning/dashboards
+    - /etc/grafana/provisioning/alerting
+    - /var/lib/grafana/dashboards
+
+- name: Ensure Grafana service enabled and started
+  ansible.builtin.service:
+    name: grafana-server
+    state: started
+    enabled: true
+</pre>
+<p>
+    This establishes the filesystem contract that makes the rest repeatable.
+</p>
+<hr/>
+<h2 class="center">Define a minimal expectation schema (example)</h2>
+<pre>
+# file: expectations/chains/checkout/payment_api.yml
+id: "checkout.payment_api"
+consumer: "checkout-service"
+provider: "payment-api"
+team: "payments"
+environment: "prod"
+
+window: "5m"
+
+availability:
+  # Example for Prometheus: percentage of successful probes / total probes
+  expr: |
+    sum(rate(probe_success{job="blackbox", target="payment-api"}[5m]))
+    /
+    sum(rate(probe_requests_total{job="blackbox", target="payment-api"}[5m]))
+  min_pass: 0.999
+
+reliability:
+  # Example: fraction of non-5xx responses
+  expr: |
+    1 - (
+      sum(rate(http_server_requests_total{service="payment-api", status=~"5.."}[5m]))
+      /
+      sum(rate(http_server_requests_total{service="payment-api"}[5m]))
+    )
+  min_pass: 0.995
+
+performance:
+  # Example: p95 latency <= 300ms expressed as a boolean series
+  expr: |
+    histogram_quantile(0.95,
+      sum by (le) (rate(http_request_duration_seconds_bucket{service="payment-api"}[5m]))
+    ) <= 0.300
+  min_pass: 1.0
+</pre>
+<p>This is intentionally “small”: it’s enough to generate alert rules and dashboards.</p>
+<h3>Render Grafana data sources provisioning (example)</h3>
+<p>Grafana provisioning supports data sources from config files. (Grafana Labs, 2025; Grafana Labs, n.d.-a)</p>
+<pre>
+# file: ansible/roles/grafana_expectations/templates/datasources.yml.j2
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: "{{ prometheus_url }}"
+    isDefault: true
+    editable: false
+</pre>
+<p>
+    Deploy it:
+</p>
+<pre>
+# file: ansible/roles/grafana_expectations/tasks/datasources.yml
+- name: Provision Grafana datasources
+  ansible.builtin.template:
+    src: datasources.yml.j2
+    dest: /etc/grafana/provisioning/datasources/datasources.yml
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart Grafana
+</pre>
+<h3>Render dashboard providers + dashboard JSON placement (example)</h3>
+<pre>
+# file: ansible/roles/grafana_expectations/templates/dashboards-providers.yml.j2
+apiVersion: 1
+
+providers:
+  - name: "expectations"
+    orgId: 1
+    folder: "Expectation Chains"
+    type: file
+    disableDeletion: false
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards
+</pre>
+<pre>
+    # file: ansible/roles/grafana_expectations/tasks/dashboards.yml
+- name: Provision dashboard providers
+  ansible.builtin.template:
+    src: dashboards-providers.yml.j2
+    dest: /etc/grafana/provisioning/dashboards/providers.yml
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart Grafana
+
+- name: Deploy generated dashboards
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../generated/grafana/dashboards/"
+    dest: /var/lib/grafana/dashboards/
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart Grafana
+</pre>
+<h3>Render alert rules provisioning from expectations (example)</h3>
+<p>
+    Grafana supports provisioning alerting resources via files and can create/update/delete at startup from those files.
+    (Grafana Labs, n.d.-b)
+</p>
+<p>
+    Grafana also documents that alerting provisioning export formats differ from update API formats, which matters if
+    you later build tooling to export/import. (Grafana Labs, n.d.-c)
+</p>
+<p>
+    A pragmatic approach is to generate one rule group per expectation with three alert rules (A/R/P) plus an optional
+    combined alert.
+</p>
+<p>
+    Example Jinja2 template (shape-focused, not exhaustive):
+</p>
+<pre>
+# file: ansible/roles/grafana_expectations/templates/alert-rule-group.yml.j2
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: "expectation.{{ expectation.id }}"
+    folder: "Expectation Chains"
+    interval: "1m"
+    rules:
+      - uid: "{{ expectation.id | replace('.', '_') }}_availability"
+        title: "[A] {{ expectation.consumer }} <- {{ expectation.provider }}"
+        condition: "C"
+        data:
+          - refId: "A"
+            datasourceUid: "{{ prometheus_datasource_uid }}"
+            model:
+              expr: |
+                {{ expectation.availability.expr | trim }}
+              intervalMs: 60000
+              maxDataPoints: 43200
+          - refId: "C"
+            datasourceUid: "__expr__"
+            model:
+              type: "threshold"
+              expression: "A"
+              conditions:
+                - evaluator:
+                    type: "lt"
+                    params: [{{ expectation.availability.min_pass }}]
+                  operator:
+                    type: "and"
+                  reducer:
+                    type: "last"
+        labels:
+          chain: "{{ chain_name }}"
+          expectation_id: "{{ expectation.id }}"
+          team: "{{ expectation.team }}"
+          environment: "{{ expectation.environment }}"
+          axis: "availability"
+        annotations:
+          summary: "Availability below threshold for {{ expectation.id }}"
+</pre>
+<p>
+    Then in tasks:
+</p>
+<pre>
+# file: ansible/roles/grafana_expectations/tasks/alerting.yml
+- name: Load expectation definitions
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/../expectations/chains"
+    patterns: "*.yml"
+  register: expectation_files
+
+- name: Render alert provisioning rule groups
+  ansible.builtin.template:
+    src: alert-rule-group.yml.j2
+    dest: "/etc/grafana/provisioning/alerting/{{ item.path | basename | replace('.yml','') }}.rules.yml"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  loop: "{{ expectation_files.files }}"
+  vars:
+    expectation: "{{ lookup('file', item.path) | from_yaml }}"
+    chain_name: "{{ (item.path.split('/') | reverse)[1] }}"
+  notify: Restart Grafana
+</pre>
+<p>
+    Notes:
+</p>
+<ul>
+    <li>This shows the technique: parse expectation YAML, template rule group YAML.</li>
+    <li>You would likely generate four rules (A/R/P/Combined) per expectation definition.</li>
+</ul>
+<h2 class="center">Provision contact points and notification policies (routing-by-label)</h2>
+<p>
+    Provision contact points and notification policies (routing-by-label)
+</p>
+<p>
+    Example contact points template:
+</p>
+<pre>
+# file: ansible/roles/grafana_expectations/templates/contact-points.yml.j2
+apiVersion: 1
+
+contactPoints:
+  - name: "team-payments"
+    receivers:
+      - uid: "team-payments-email"
+        type: "email"
+        settings:
+          addresses: "payments-oncall@example.com"
+</pre>
+<p>
+    Example notification policy snippet (route by team label):
+</p>
+<pre>
+# file: ansible/roles/grafana_expectations/templates/notification-policies.yml.j2
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: "team-default"
+    routes:
+      - receiver: "team-payments"
+        object_matchers:
+          - ["team", "=", "payments"]
+</pre>
+<p>
+    Deploy them:
+</p>
+<pre>
+# file: ansible/roles/grafana_expectations/tasks/routing.yml
+- name: Provision contact points
+  ansible.builtin.template:
+    src: contact-points.yml.j2
+    dest: /etc/grafana/provisioning/alerting/contact-points.yml
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart Grafana
+
+- name: Provision notification policies
+  ansible.builtin.template:
+    src: notification-policies.yml.j2
+    dest: /etc/grafana/provisioning/alerting/notification-policies.yml
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart Grafana
+</pre>
+<h3>Restart/reload strategy (practical and safe)</h3>
+<p>
+    Grafana provisions from files at startup; for a turn-key system, the most reliable behavior is:
+</p>
+<ol>
+    <li>render templates</li>
+    <li>write to provisioning dirs</li>
+    <li>restart Grafana</li>
+    <li>validate health (<code>/api/health</code>) and presence of dashboards/rules via API as a smoke test</li>
+</ol>
+<p>
+    Grafana’s provisioning model is explicitly based on applying provisioning files when Grafana starts. (Grafana Labs,
+    n.d.-a; Grafana Labs, n.d.-b)
+</p>
+<p>
+    Example handler:
+</p>
+<pre>
+# file: ansible/roles/grafana_expectations/handlers/main.yml
+- name: Restart Grafana
+  ansible.builtin.service:
+    name: grafana-server
+    state: restarted
+</pre>
+<hr/>
+<h2 class="center">“Add a new expectation” workflow (what your team does day-to-day)</h2>
+<br/>
+<ol>
+    <li>Add expectations/chains/&lt;chain&gt;/&lt;new_expectation\&gt;.yml</li>
+    <li>Run Ansible (ansible-playbook -i inventories/prod/hosts.yml site.yml)</li>
+    <li>Grafana restarts and provisions:
+        <ul>
+            <li>dashboards and data sources</li>
+            <li>alert rule groups</li>
+            <li>routing/contact points</li>
+        </ul>
+    </li>
+</ol>
+<p>
+    This workflow stays stable even as you add dozens or hundreds of expectations because the “source of truth” is the
+    small YAML expectation file, and the rest is generated consistently.
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<p>
+    Amazon Web Services. (n.d.). AWS Cloud Development Kit (AWS CDK) Documentation. https://docs.aws.amazon.com/cdk/
+</p>
+<p>
+    Amazon Web Services. (n.d.). What is the AWS CDK? (AWS CDK v2 Developer Guide).
+    https://docs.aws.amazon.com/cdk/v2/guide/home.html
+</p>
+<p>
+    Grafana Labs. (2025). Provision dashboards and data sources (Tutorial).
+    https://grafana.com/tutorials/provision-dashboards-and-data-sources/
+</p>
+<p>
+    Grafana Labs. (n.d.-a). Provision Grafana. https://grafana.com/docs/grafana/latest/administration/provisioning/
+</p>
+<p>
+    Grafana Labs. (n.d.-b). Use configuration files to provision alerting resources.
+    https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/
+</p>
+<p>
+    Grafana Labs. (n.d.-c). Alerting Provisioning HTTP API (Developer resources).
+    https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/alerting_provisioning/
+</p>
+<p>
+    Red Hat. (n.d.). Roles — Ansible community documentation.
+    https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_reuse_roles.html
+</p>
