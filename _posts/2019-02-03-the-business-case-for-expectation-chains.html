@@ -1,0 +1,286 @@
+---
+layout: page
+title: The Business Case for Expectation Chains
+date: 2019-02-03 00:00:00-0600
+description: This post makes the business case for expectation chains.
+keywords: expectation chains, observability, monitoring, system health, slo, sli, sla, reliability, performance, risk, uptime, business case
+---
+<hr/>
+<h2 class="center">Introduction</h2>
+<br/>
+<p>
+    Implementing Expectation Chains in a company is less about buying a monitoring platform and more about adopting a
+    management system for promises: explicit, measurable commitments that link customer outcomes to the internal
+    capabilities that deliver them. The result is a lower cost of operations, improved customer, and a better employee
+    work experience managing systems at scale. The core move is to stop treating “availability,” “quality,” and “speed”
+    as generic system properties and instead define them as expectations that exist between a consumer and a
+    provider—then connect those expectations into a chain that mirrors how value actually flows through the business.
+</p>
+<hr/>
+<h2 class="center">Start with value: define a small set of customer-facing expectations</h2>
+<br/>
+<p>
+    A practical rollout begins with two or three customer outcomes that executives already care about—for example
+    “customers can complete checkout,” “customers can log in and reach their dashboard,” or “clients can submit and
+    retrieve data through the API.” These are not slogans. They become precise expectations with thresholds that
+    leadership can defend and fund.
+</p>
+<p>
+    Expectation Chains benefit from the service-level vocabulary popularized in Site Reliability Engineering: service
+    level indicators (SLIs) are the measured signals, and service level objectives (SLOs) are the target ranges for
+    those signals (Google SRE, n.d.). SLOs force useful specificity: “Checkout succeeds” is not measured by CPU
+    utilization; it is measured by whether well-formed checkout requests succeed, whether the right totals are computed,
+    and whether the user experience meets a time window.
+</p>
+<p>
+    For business and technical leadership, the key is to express each expectation along three axes that are easy to
+    reason about:
+<ol>
+    <li>Availability: can the consumer access the service?</li>
+    <li>Reliability: does the service produce the correct outcome for the input?</li>
+    <li>Performance: does it meet the time window that makes it valuable?</li>
+</ol>
+<p>
+    This tri-axis framing aligns naturally to SLI/SLO practice, where teams typically track availability (successful
+    requests), error rate, and latency distributions (Google SRE, n.d.).
+</p>
+<h3>Example 1: An e-commerce “Checkout” expectation chain</h3>
+<p>
+    Consider a retail company with an online store. Leadership cares about conversion rate and revenue, but the
+    operational question is: What must be true for checkout to be successful? A top-level expectation might be:
+</p>
+<img class="center"
+     style="width: 50%;"
+     src="/img/ecommerce-expectation-example.png"
+     alt="An e-commerce expectation chain example"
+/>
+<p>
+    Customer ← Expectation: “Checkout completes” ← Checkout Service
+</p>
+<ul>
+    <li>Availability SLO: 99.9% of checkout attempts receive a valid response</li>
+    <li>Reliability SLO: 99.95% of completed checkouts have correct totals and tax/shipping rules applied</li>
+    <li>Performance SLO: 95th percentile end-to-end checkout completion ≤ 2.0 seconds</li>
+</ul>
+<p>
+    From there, the company decomposes this into direct dependencies (not “everything in the stack,”
+    only what checkout actually needs). For example:
+</p>
+<ul style="list-style-type: none">
+    <li>
+        <h5>Checkout Service depends on:</h5>
+        <ul>
+            <li>Cart/Pricing Service</li>
+            <li>Inventory/Reservation Service</li>
+            <li>Payments Gateway Adapter</li>
+            <li>Fraud/Risk Service</li>
+            <li>Order Database</li>
+        </ul>
+    </li>
+</ul>
+<p>
+    Each dependency becomes its own expectation node, owned by the provider team. This is the governance advantage of
+    Expectation Chains: the chain makes “who owes what to whom” explicit, and leadership can see how reliability is
+    assembled from smaller commitments rather than argued about after an incident.
+</p>
+<h3>
+    Turn expectations into operational controls using error budgets
+</h3>
+<p>
+    Once SLOs exist, the company needs a mechanism to make them actionable. Error budgets are a widely used control:
+    the “budget” is the allowed failure rate implied by the SLO, and it becomes a shared decision tool for balancing
+    feature velocity and operational stability (Thurgood, 2018). In Google’s published example policy, teams continue
+    normal releases when they are within SLO, but when the error budget is exceeded, they halt most releases to
+    prioritize reliability work until the service returns to compliance (Thurgood, 2018). That policy structure is
+    extremely useful for leadership because it replaces subjective debates (“are we stable enough?”) with an agreed
+    rule.
+</p>
+<p>
+    Applied to the checkout chain, a leadership-aligned policy might look like:
+</p>
+<ul>
+    <li>
+        If Checkout is within error budget, the feature roadmap proceeds.
+    </li>
+    <li>
+        If Checkout exceeds budget over a rolling four-week window, deployment approvals tighten:
+        <ul>
+            <li>
+                Only P0 fixes, security fixes, and reliability work ship.
+            </li>
+            <li>
+                All other changes require explicit exception approval.
+            </li>
+        </ul>
+    </li>
+    <li>
+        This aligns incentives across product, engineering, and operations while preserving business intent: improve
+        outcomes, not just reduce alerts.
+    </li>
+</ul>
+<h3>Instrumentation: measure the expectation, not the infrastructure</h3>
+<p>
+    Expectation Chains fail if teams instrument only component health (CPU, memory) but not user outcomes. For each
+    expectation, the company implements probes that answer: did we meet Availability, Reliability, and Performance for
+    this interaction? That can include synthetic transactions (robot checkouts), real user monitoring (browser timing),
+    and server-side indicators (successful request ratio and latency percentiles).
+</p>
+<p>
+    OpenTelemetry is often a practical standard for building this instrumentation layer because it provides a
+    vendor-neutral collection and export of traces, metrics, and logs (OpenTelemetry, n.d.). The OpenTelemetry
+    Collector, in particular, is designed as a unifying pipeline that can receive telemetry, process it, and export to
+    one or more backends—helpful when organizations want consistent measurement without immediate vendor lock-in
+    (OpenTelemetry, 2025).
+</p>
+<p>
+    For the checkout example, the company typically instruments:
+</p>
+<ul>
+    <li>A trace that begins at the browser or edge and crosses Checkout → Pricing → Inventory → Payments → DB</li>
+    <li>A metric that counts successful checkout completions and failures by reason</li>
+    <li>A latency metric (e.g., p95/p99) for end-to-end and per-dependency timing</li>
+    <li>A correctness signal (e.g., validation that the order total and tax rules match policy)</li>
+</ul>
+<p>
+    The principle is that each expectation has explicit evidence for the three axes, enabling a pass/fail rollup
+    aligned to business meaning.
+</p>
+<h3>Aggregation: chains and pools behave differently</h3>
+<p>
+    A chain is not a dashboard. It is a logical structure for deciding whether the customer-facing expectation is being
+    met. In a strict dependency chain, a failure in a required child expectation compromises the parent expectation.
+    However, modern systems have redundancy: a pool of database replicas, a fleet of API instances, multiple payment
+    processors. Pool-level expectations must model capacity and quorum, not binary “up/down.”
+</p>
+<p>
+    This is where leadership benefits from a more realistic story than classic uptime metrics. If only 70% of a
+    serving fleet is healthy, the customer experience may be fine today but fragile under load tomorrow. Expectation
+    Chains make it natural to define pool expectations like:
+</p>
+<ul>
+    <li>“At least 90% of serving instances meet p95 latency ≤ 200 ms”</li>
+    <li>“At least N units of capacity are available to sustain peak hour traffic”</li>
+    <li>“Quorum reads/writes succeed within threshold”</li>
+</ul>
+<p>
+    This gives executives early warning signals that are still tied to customer impact, rather than infrastructure
+    trivia.
+</p>
+<h3>Example 2: a B2B SaaS API expectation chain</h3>
+<p>
+    For a B2B platform, customer expectations often center on API reliability and predictability. A top-level
+    expectation might be:
+</p>
+<ul style="list-style-type: none">
+    <li><h4>Client Application ← “CreateRecord API succeeds” ← Public API</h4></li>
+    <li>
+        <ul>
+            <li>Availability: 99.95% successful responses for well-formed requests</li>
+            <li>Reliability: no duplicate records; idempotency honored; schema constraints enforced</li>
+            <li>Performance: p95 ≤ 300 ms for standard payload sizes</li>
+        </ul>
+    </li>
+</ul>
+<p>
+    Dependencies might include:
+</p>
+<ul style="list-style-type: none">
+    <li>Authentication/Authorization service</li>
+    <li>Rate limiting / API gateway policy engine</li>
+    <li>Primary datastore</li>
+    <li>Event bus for downstream processing</li>
+    <li>Notification service (optional)</li>
+</ul>
+<p>
+    In this setting, Expectation Chains also support contract clarity. If “CreateRecord” is fast but downstream
+    “SearchIndex updated” lags, leadership can decide whether that lag violates a customer promise or remains
+    best-effort. Expectation Chains encourage making those distinctions explicit so that sales promises, contracts, and
+    engineering reality match.
+</p>
+<h3>Integrate incident response and security expectations</h3>
+<p>
+    Expectation Chains become operationally meaningful when they shape incident response. ITIL’s incident management
+    guidance emphasizes minimizing negative impact by restoring normal service operation as quickly as possible and
+    notes that quick restoration directly affects satisfaction and provider credibility (AXELOS, 2020). Expectation
+    Chains operationalize this by ensuring that when a customer-facing expectation fails, the organization can
+    immediately see the most likely failing child expectation and route response to the team that owns it.
+</p>
+<p>
+    Security incidents can be modeled similarly. NIST emphasizes that effective incident response requires planning and
+    resources and provides structured guidance for handling incidents efficiently and effectively (Cichonski et al.,
+    2012). In practice, leadership can define expectations such as:
+</p>
+<ul style="list-style-type: none">
+    <li>“Critical security alerts are triaged within 15 minutes”</li>
+    <li>“Containment for confirmed credential compromise begins within 60 minutes”</li>
+    <li>“Customer-impacting security incidents receive executive communication updates every 60 minutes”</li>
+</ul>
+<p>
+    These are not merely policy statements; they are measurable expectations supported by logs, workflow timestamps, and
+    on-call telemetry. This allows security operations to be governed with the same rigor as product reliability.
+</p>
+<h3>Tie Expectation Chains to delivery performance and governance</h3>
+<p>
+    Expectation Chains gain executive buy-in when they connect reliability work to delivery outcomes. DORA’s “four keys”
+    provide a well-known set of delivery performance measures: deployment frequency, change lead time, change failure
+    percentage, and failed deployment recovery time (DORA, n.d.). A mature Expectation Chains program uses these metrics
+    to demonstrate that reliability discipline is not inherently the enemy of speed; instead, the organization can track
+    whether changes are becoming safer and recoveries faster while customer expectations remain satisfied (DORA, n.d.).
+</p>
+<p>
+    A concrete governance pattern looks like:
+</p>
+<ul>
+    <li>Every critical expectation has an owner, SLOs, and an error budget policy.</li>
+    <li>Every production change declares which expectations it could affect.</li>
+    <li>Post-release, the company reviews expectation health deltas and ties incidents back to breached expectations.
+    </li>
+    <li>Quarterly planning allocates capacity to expectations that repeatedly threaten customer outcomes.</li>
+</ul>
+<p>
+    This turns observability from a reactive, tool-driven activity into an operating model for delivering value
+    predictably.
+</p>
+<h3>A realistic adoption path</h3>
+<p>
+    Most companies implement Expectation Chains in phases:
+</p>
+<ol>
+    <li>Define top-level customer expectations for one revenue-critical journey.</li>
+    <li>Map direct dependencies and assign ownership for each child expectation.</li>
+    <li>Instrument outcome-based signals (synthetics, traces, key correctness metrics).</li>
+    <li>Establish error budget rules and integrate them into release governance (Thurgood, 2018).</li>
+    <li>Expand recursively into deeper layers (data, vendors, teams) once the first chain reliably supports decisions.
+    </li>
+</ol>
+<p>
+    This approach avoids the common trap of “boil the ocean observability.” Instead, the organization earns trust by
+    making a small number of customer-facing expectations measurable and governable, then scaling the pattern.
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<br/>
+<p>
+    AXELOS. (2020). Incident management: ITIL® 4 practice guide (11 January 2020).
+    https://s3.amazonaws.com/thinkific/file_uploads/381835/attachments/aba/2cf/226/Incident-management.pdf
+</p>
+<p>
+    Cichonski, P., Millar, T., Grance, T., & Scarfone, K. (2012). Computer security incident handling guide (SP 800-61
+    Rev. 2). National Institute of Standards and Technology. https://doi.org/10.6028/NIST.SP.800-61r2
+</p>
+<p>
+    DORA. (n.d.). DORA’s software delivery metrics: The four keys. https://dora.dev/guides/dora-metrics-four-keys/
+</p>
+<p>
+    Google SRE. (n.d.). Service level objectives. https://sre.google/sre-book/service-level-objectives/
+</p>
+<p>
+    OpenTelemetry. (n.d.). Documentation. https://opentelemetry.io/docs/
+</p>
+<p>
+    OpenTelemetry. (2025). Collector. https://opentelemetry.io/docs/collector/
+</p>
+<p>
+    Thurgood, S. (2018, February 19). Example error budget policy. In The site reliability workbook.
+    https://sre.google/workbook/error-budget-policy/
+</p>
