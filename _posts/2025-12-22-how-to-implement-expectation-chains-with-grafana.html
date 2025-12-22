@@ -472,8 +472,8 @@ policies:
 <h2 class="center">“Add a new expectation” workflow (what your team does day-to-day)</h2>
 <br/>
 <ol>
-    <li>Add expectations/chains/&lt;chain&gt;/&lt;new_expectation\&gt;.yml</li>
-    <li>Run Ansible (ansible-playbook -i inventories/prod/hosts.yml site.yml)</li>
+    <li>Add <code>expectations/chains/&lt;chain&gt;/&lt;new_expectation\&gt;.yml</code></li>
+    <li>Run Ansible (<code>ansible-playbook -i inventories/prod/hosts.yml site.yml</code>)</li>
     <li>Grafana restarts and provisions:
         <ul>
             <li>dashboards and data sources</li>
