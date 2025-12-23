@@ -53,12 +53,16 @@ footer .container {
     height: 100%;
     display: flex;
     align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 .site-nav .nav-link {
     color: #111111;
     font-variant: small-caps;
     font-variant-caps: small-caps;
+    white-space: nowrap;
 }
 
 .site-nav .nav-link:hover, .site-nav .nav-link:focus {
@@ -112,3 +116,8 @@ pre {
 .center { text-align: center; }
 .left { text-align: left; }
 .right { text-align: right; }
+/* Prevent wrapping and shrinking so horizontal scroll appears on overflow */
+.site-nav .nav {
+    flex-wrap: nowrap;
+    flex: 0 0 auto;
+}
