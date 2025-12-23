@@ -1,0 +1,422 @@
+---
+layout: page
+title: AI-Based Threat-Hunting Tool
+date: 2024-12-09 00:00:00-0600
+description: This post describes the architecture of a threat hunting tool that leverages AI to identify and prioritize threats.
+keywords: AI, LLM, Artificial Intelligence, threat hunting, threat intelligence, cybersecurity, aws, bedrock, athena, sqs, lambda, glue, opensearch, neptune, graph database
+---
+
+<hr/>
+<h2 class="center">Abstract</h2>
+<br/>
+<p>
+    This specification defines an event-driven threat hunting platform implemented on Amazon Web Services (AWS) that
+    separates telemetry storage and transformation (“Security Lake Layer”) from analyst and model-facing knowledge and
+    reasoning (“Hunter Layer”). The platform ingests heterogeneous threat intelligence and security telemetry into
+    Amazon S3, normalizes and enriches it through AWS Glue, and projects search-optimized views into Amazon OpenSearch
+    Service. Operational failures are isolated via an Amazon SQS dead-letter queue (DLQ) and analyzed by a dedicated
+    Lambda function that emits metrics to Amazon CloudWatch and triggers alerts through Amazon Simple Notification
+    Service (SNS). Hunting logic is represented as structured graphs stored in Amazon Neptune alongside a service
+    catalog/dependency graph, threat models, playbooks, and structured documentation. An LLM hosted on Amazon Bedrock
+    consumes these graphs to propose constrained hunt plans, while AWS Step Functions orchestrates deterministic
+    execution of those plans against OpenSearch and Amazon Athena to produce durable, evidence-backed “Observations”
+    stored in S3 and queryable in Athena. This design aligns with contemporary guidance emphasizing repeatability,
+    evidence preservation, and safety controls for AI-assisted decision support, including prompt/output guardrails and
+    strong validation boundaries (National Institute of Standards and Technology [NIST], 2023; OWASP, 2025).
+</p>
+<br/>
+<img src="/img/AI-Based-Threat-Hunting-Tool.png" alt="architectural diagram"/>
+<hr/>
+<h2 class="center">Scope</h2>
+<br/>
+<p>
+    This document specifies:
+</p>
+<ol>
+    <li>
+        The logical architecture and data flows across the Data Source Layer, Security Lake Layer, and Hunter Layer.
+    </li>
+    <li>
+        The graph data models stored in Neptune, including service dependency/support graphs, threat models, and hunt
+        graphs (metadata + indicators).
+    </li>
+    <li>
+        Deterministic hunt execution via Step Functions and query backends (OpenSearch and Athena).
+    </li>
+    <li>
+        Operational resilience mechanisms (DLQ, failure analysis, CloudWatch metrics, SNS alerts).
+    </li>
+    <li>
+        Infrastructure-as-code patterns with Terraform examples for core AWS resources.
+    </li>
+</ol>
+<hr/>
+<h2 class="center">Non-Goals</h2>
+<br/>
+<p>
+    This document does not specify:
+</p>
+<ol>
+    <li>
+        Case management (e.g., Jira) is explicitly out of scope.
+    </li>
+    <li>
+        Version control for hunts/playbooks is external (e.g., Git); Neptune stores structured graph representations
+        used at runtime.
+    </li>
+    <li>
+        Telemetry events are not written to Neptune; Neptune is exclusively a knowledge/metadata graph store.
+    </li>
+</ol>
+<hr/>
+<h2 class="center">Design Principle: Separation of Concerns</h2>
+<br/>
+<p>
+    The system enforces a strict separation between:
+</p>
+<ul>
+    <li>
+        Telemetry plane: raw and normalized security data in S3, analytic/search projections in OpenSearch, and
+        query-at-rest via Athena.
+    </li>
+    <li>
+        Knowledge plane: ecosystem context, service relationships, threat models, and hunt definitions stored as graphs
+        in Neptune.
+    </li>
+    <li>
+        Reasoning plane: LLM-based planning and summarization in Bedrock.
+    </li>
+    <li>
+        Control plane: deterministic orchestration and evaluation in Step Functions.
+    </li>
+</ul>
+<p>
+    This separation reduces coupling, improves scalability, and prevents “graph-as-SIEM” failure modes in which
+    high-cardinality event streams degrade knowledge stores.
+</p>
+<hr/>
+<h2 class="center">Design Principle: Determinism and Evidence</h2>
+<br/>
+<p>
+    A core invariant is that the LLM is not the authoritative detector. Instead, the LLM proposes bounded plans; a
+    deterministic evaluator executes queries and computes matches. Observations must carry evidence pointers (e.g.,
+    Athena query execution IDs, OpenSearch query metadata, S3 object URIs) to enable replay and audit consistent with
+    incident response practices emphasizing traceability and evidence handling (NIST, 2024).
+</p>
+<hr/>
+<h2 class="center">Design Principle: Safety for AI-Augmented Systems</h2>
+<br/>
+<p>
+    The platform mitigates known LLM application risks (e.g., prompt injection, unsafe tool use) by using explicit
+    validation, allowlisted actions, and model guardrails. OWASP’s guidance on LLM application risks highlights the need
+    to validate outputs and control downstream actions; NIST AI RMF similarly emphasizes governance and risk controls
+    for AI systems (NIST, 2023; OWASP, 2025).
+</p>
+<hr/>
+<h2 class="center">System Overview</h2>
+<br/>
+<h3>Data Source Layer</h3>
+<br/>
+<p>
+    This layer includes an arbitrary number of threat intel sources (i.e., data collectors), including but not limited
+    to "active collections" (scraping, polling APIs) as well as passive collection (webhooks, honeypots, log forwarders)
+    and hybrids (e.g. honey token distribution and observation channels.
+</p>
+<p>
+    Data collected at this layer should be structured text (json) or binary (protobuf) data with clear (albeit diverse)
+    schemas for each different feed channel.
+</p>
+<br/>
+<h3>Security Lake Layer</h3>
+<br/>
+<p>
+    The security lake layer consumes the data feed from the data source layer into an s3 bucket, where AWS Glue performs
+    any necessary transformer, normalizer and sanitizer operations, feeding the cleaned results to an OpenSearch service
+    where the data can be queried by the hunter layer.
+</p>
+<p>
+    Invalid data or other data errors are counted by a Lambda function to produce metrics in cloudwatch.
+</p>
+<br/>
+<h3>Hunter Layer</h3>
+<br/>
+<p>
+    The Hunter layer uses AWS Step functions to orchestrate a threat hunt workflow. This workflow sends prompts to
+    AWS bedrock (LLM) which queries the Security Lake and Neptune ecosystem graphs to analyze threat intelligence within
+    the context of the target environment, producing Observations in an S3 bucket.
+</p>
+<p>
+    Threat observations in S3 are queryable by Amazon Athena and are also used to provide thin feedback metric
+    attributes
+    to the Neptune environment graphs. These observations in S3 are individual JSON files Athena can quickly index and
+    consume.
+</p>
+<hr/>
+<h2 class="center">Neptune Graphs</h2>
+<br/>
+<h3>Service Catalog and Dependency Graph</h3>
+<br/>
+<p>
+    This specification distinguishes composition from runtime dependency to avoid semantic ambiguity.
+</p>
+<h4>Node Labels</h4>
+<ul>
+    <li>:Product</li>
+    <li>:Service</li>
+    <li>:Component</li>
+</ul>
+<h4>Composition Edges</h4>
+<ul>
+    <li><code>(Product)-[:HAS_SERVICE]->(Service)</code></li>
+    <li><code>(Service)-[:HAS_SUBSERVICE]->(Service)</code></li>
+    <li><code>(Service)-[:HAS_COMPONENT]->(Component)</code></li>
+</ul>
+<h4>Runtime dependency edge</h4>
+<ul>
+    <li><code>(Product|Service|Component)-[:DEPENDS_ON]->(Product|Service|Component)</code></li>
+</ul>
+<h4>Required properties (recommended)</h4>
+<p>Nodes: stable IDs <code>(product_id, service_id, component_id), name, env, owner_team_id</code>.</p>
+<p>Dependency edges: <code>type</code> (e.g., <code>sync_call, async_event, data_read</code>),
+    <code>criticality, since, until, source, confidence</code>.</p>
+<br/>
+<h3>Service Support Graph</h3>
+<br/>
+<p>
+    Extends the service graph with organizational support structure and alert.
+</p>
+<h4>Node Labels</h4>
+<ul>
+    <li>:Team</li>
+    <li>:Person</li>
+</ul>
+<h4>Edges</h4>
+<ul>
+    <li><code>(Product|Service|Component)-[:OWNED_BY {since, until, primary, source, confidence}]->(Team)</code></li>
+    <li><code>(Product|Service|Component)-[:SUPPORTED_BY {since, until, tier, primary, escalation_policy_id, source,
+        confidence}]->(Team)</code></li>
+    <li><code>(Team)-[:HAS_MEMBER {since, until, role}]->(Person)</code></li>
+    <li><code>(Team)-[:LED_BY {since, until}]->(Person)</code></li>
+</ul>
+<p>
+    This graph supports queries such as “Who owns the services impacted by a dependency chain?” and “Which team is
+    tier-1 support for a targeted component?”
+</p>
+<br/>
+<h3>Threat Model Graph</h3>
+<br/>
+<p>
+    A minimal threat model graph aligned to ATT&CK:
+</p>
+<h4>Node labels</h4>
+<ul>
+    <li><code>:Technique (ATT&CK technique IDs)</code></li>
+    <li><code>:Detection</code></li>
+    <li><code>:DataSource</code></li>
+    <li><code>:Control</code>(optional)</li>
+</ul>
+<h4>Edges</h4>
+<p>
+<ul>
+    <li><code>(Technique)-[:DETECTED_BY]->(Detection)</code></li>
+    <li><code>(Detection)-[:REQUIRES_DATASOURCE]->(DataSource)</code></li>
+    <li><code>(Technique)-[:MITIGATED_BY]->(Control) (optional)</code></li>
+    <li><code>(Detection)-[:APPLIES_TO]->(Product|Service|Component)</code>(optional)</li>
+</ul>
+<br/>
+<h3>Hunt Graph</h3>
+<br/>
+<p>
+    A hunt graph stores hunt metadata and indicators (e.g., IPs, URLs, domains, CVEs) as nodes and edges between them.
+</p>
+<ul>
+    <li><code>:Hunt</code> node containing metadata.</li>
+    <li>A set of IOC nodes (<code>:Indicator:*</code>) as graph nodes.</li>
+    <li>Optional logical grouping nodes to encode match semantics without free-form code.</li>
+</ul>
+<h4>Node labels</h4>
+<ul>
+    <li><code>:Hunt {hunt_id, name, description, severity, confidence, owner_team_id, valid_from, valid_to, commit_sha,
+        source_uri}</code></li>
+    <li><code>:Indicator:IP, :Indicator:Domain, :Indicator:URL, :Indicator:Hash</code>, etc.</li>
+    <li>Optional: <code>:IndicatorSet {set_id, semantics: ANY|ALL|K_OF_N, k}</code></li>
+    <li>Optional: <code>:TemporalWindow {lookback, valid_from, valid_to}</code></li>
+</ul>
+<h4>Edges</h4>
+<ul>
+    <li><code>(Hunt)-[:HAS_IOC {role, weight, confidence, source, first_seen, last_seen}]->(Indicator)</code></li>
+    <li><code>(Hunt)-[:HAS_SET]->(IndicatorSet)</code></li>
+    <li><code>(IndicatorSet)-[:INCLUDES]->(Indicator)</code></li>
+    <li><code>(Hunt)-[:TARGETS]->(Product|Service|Component)</code></li>
+    <li><code>(Hunt)-[:MAPS_TO]->(Technique)</code></li>
+    <li><code>(Hunt)-[:REQUIRES_DATASOURCE]->(DataSource)</code></li>
+</ul>
+<h4>Key constraint</h4>
+<p>
+    Hunt evaluation is deterministic: Step Functions (or a designated evaluator Lambda) interprets IndicatorSet
+    semantics and validates that all plan actions are allowlisted.
+</p>
+<hr/>
+<h2 class="center">Workflows</h2>
+<br/>
+<h3>Ingestion and indexing workflow</h3>
+<br/>
+<ol>
+    <li>Raw data is written to S3 Raw with stable partitions.</li>
+    <li><code>_SUCCESS</code> marker is written to the partition prefix.</li>
+    <li>S3 emits an object-created event to EventBridge.</li>
+    <li>EventBridge triggers the Ingest Trigger Lambda.</li>
+    <li>Lambda calls Glue <code>StartJobRun</code> with partition coordinates.</li>
+    <li>Glue reads raw data, normalizes to clean S3, and updates OpenSearch indices.</li>
+    <li>Failures are reported to DLQ; Failure Analyzer emits CloudWatch metrics; CloudWatch alarms notify SNS.</li>
+</ol>
+<br/>
+<h3>Hunt Execution Workflow</h3>
+<br/>
+<ol>
+    <li>Step Functions selects candidate hunts based on:
+        <ul>
+            <li>targeted services/products/components</li>
+            <li>ATT&CK techniques relevant to current intel</li>
+            <li>available data sources and time windows</li>
+        </ul>
+    </li>
+    <li>Step Functions fetches hunt and context graphs from Neptune (via a Graph Access Lambda).</li>
+    <li>Step Functions invokes Bedrock to produce a structured, bounded plan (via LLM Gateway Lambda) under
+        guardrails.
+    </li>
+    <li>Step Functions validates the plan.</li>
+    <li>Step Functions executes:
+        <ul>
+            <li>OpenSearch queries for fast matching/aggregation</li>
+            <li>Athena queries for deep historical scans (where appropriate)</li>
+        </ul>
+    </li>
+    <li>The evaluator computes match results against hunt graph semantics.</li>
+    <li>An Observation is produced (structured record + evidence pointers) and written to S3.</li>
+    <li>Alerts may be published to SNS for high-severity observations.</li>
+</ol>
+<br/>
+<h3>Feedback Loop</h3>
+<br/>
+<ol>
+    <li>Observations are optionally summarized by the LLM (bounded to evidence).</li>
+    <li>A Feedback Sanitizer Lambda removes sensitive strings and normalizes feedback.</li>
+    <li>Sanitized feedback updates either:
+        <ul>
+            <li>threat model confidence edges</li>
+            <li>hunt tuning metadata</li>
+            <li>documentation links</li>
+        </ul>
+    </li>
+</ol>
+<hr/>
+<h2 class="center">Operational Considerations</h2>
+<br/>
+<h3>Scalability</h3>
+<br/>
+<ul>
+    <li>Partitioned S3 datasets support parallel ETL and query pruning.</li>
+    <li>OpenSearch scaling must be managed via shard strategy and retention (ISM).</li>
+    <li>Step Functions concurrency should be bounded to protect OpenSearch and Athena from burst overload.</li>
+</ul>
+<h3>Cost Controls</h3>
+<ul>
+    <li>Use ISM for OpenSearch retention.</li>
+    <li>Use S3 lifecycle policies for raw/clean/observation retention tiers.</li>
+    <li>Use Athena workgroups and query limits to bound ad hoc cost exposure.</li>
+</ul>
+<h3>Audit and Replay</h3>
+<p>
+    Observations, by design, enable replay: the system stores the hunt identifier and version reference plus evidence
+    pointers. This supports post-incident review and continuous improvement consistent with incident response
+    recommendations emphasizing documentation and continuous refinement (NIST, 2024).
+</p>
+<hr/>
+<h2 class="center">Limitations and Future Enhancements</h2>
+<br/>
+<ul>
+    <li>OpenSearch data-plane access: deterministic access should be mediated through a signed-request Lambda to avoid
+        embedding credentials in state machine definitions.
+    </li>
+    <li>Knowledge freshness: service graphs and documentation links require explicit “last_verified/source/confidence”
+        fields to prevent stale context from misleading hunts.
+    </li>
+    <li>Advanced retrieval: structured documentation could be paired with a dedicated search or vector index; this does
+        not change the core separation between telemetry and knowledge planes.
+    </li>
+    <li>Automated coverage analysis: mapping hunts and detections to ATT&CK can support measurable coverage reporting
+        and prioritization (MITRE, n.d.).
+    </li>
+</ul>
+<hr/>
+<h2 class="center">References</h2>
+<br/>
+<p>
+    Amazon Web Services. (n.d.). Creating alarms for dead-letter queues using Amazon CloudWatch. Amazon Simple Queue
+    Service Developer Guide. Retrieved December 23, 2025, from
+    https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/dead-letter-queues-alarms-cloudwatch.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Detect and filter harmful content by using Amazon Bedrock Guardrails. Amazon Bedrock
+    User Guide. Retrieved December 23, 2025, from https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Index State Management in Amazon OpenSearch Service. Amazon OpenSearch Service
+    Developer Guide. Retrieved December 23, 2025, from
+    https://docs.aws.amazon.com/opensearch-service/latest/developerguide/ism.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Learning to use AWS service SDK integrations in Step Functions. AWS Step Functions
+    Developer Guide. Retrieved December 23, 2025, from
+    https://docs.aws.amazon.com/step-functions/latest/dg/supported-services-awssdk.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Neptune graph data model. Amazon Neptune User Guide. Retrieved December 23, 2025, from
+    https://docs.aws.amazon.com/neptune/latest/userguide/feature-overview-data-model.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Publishing an Amazon SNS message. Amazon Simple Notification Service Developer Guide.
+    Retrieved December 23, 2025, from https://docs.aws.amazon.com/sns/latest/dg/sns-publishing.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). StartJobRun. AWS Glue API Reference. Retrieved December 23, 2025, from
+    https://docs.aws.amazon.com/glue/latest/webapi/API_StartJobRun.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Using dead-letter queues in Amazon SQS. Amazon Simple Queue Service Developer Guide.
+    Retrieved December 23, 2025, from
+    https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Using EventBridge. Amazon Simple Storage Service User Guide. Retrieved December 23,
+    2025, from https://docs.aws.amazon.com/AmazonS3/latest/userguide/EventBridge.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Using Amazon CloudWatch alarms. Amazon CloudWatch User Guide. Retrieved December 23,
+    2025, from https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html
+</p>
+<p>
+    Amazon Web Services. (n.d.). Work with query results and recent queries. Amazon Athena User Guide. Retrieved
+    December 23, 2025, from https://docs.aws.amazon.com/athena/latest/ug/querying.html
+</p>
+<p>
+    HashiCorp. (n.d.). Terraform Registry: hashicorp/aws provider documentation (selected resources). Retrieved December
+    23, 2025, from https://registry.terraform.io/providers/hashicorp/aws/latest/docs
+</p>
+<p>
+    MITRE. (n.d.). MITRE ATT&CK. Retrieved December 23, 2025, from https://attack.mitre.org/
+</p>
+<p>
+    National Institute of Standards and Technology. (2023). Artificial Intelligence Risk Management Framework (AI RMF
+    1.0) (NIST AI 100-1). https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf
+</p>
+<p>
+    National Institute of Standards and Technology. (2024). Incident response recommendations and considerations for
+    cybersecurity risk management: A CSF 2.0 community profile (NIST SP 800-61r3).
+    https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-61r3.pdf
+</p>
+<p>
+    OWASP. (2025). OWASP Top 10 for Large Language Model Applications. Retrieved December 23, 2025, from
+    https://owasp.org/www-project-top-10-for-large-language-model-applications/
+</p>
