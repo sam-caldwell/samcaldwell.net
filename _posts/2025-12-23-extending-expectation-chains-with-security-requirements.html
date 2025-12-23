@@ -1,0 +1,195 @@
+---
+layout: page
+title: Extending Expectation Chains With Security Requirements
+date: 2025-12-23 17:22:01-0600
+description: A security-focused extension of Expectation Chains
+keywords: expectation chains, security, observability, monitoring
+---
+
+<hr/>
+<h2 class="center">Abstract</h2>
+<p>
+    Expectation chains were originally defined as a formal method for expressing, measuring, and validating service
+    guarantees across distributed systems using three primary axes: availability, reliability, and performance. These
+    axes map cleanly to traditional observability practices and allow system designers to decompose end-to-end
+    guarantees into measurable expectations across service boundaries. However, modern software systems face security
+    threats that are as existential as outages or latency regressions. Treating security as a separate concern from
+    observability introduces blind spots, operational friction, and systemic risk. This paper argues that security
+    requirements can and should be incorporated directly into expectation chains as first-class expectation attributes.
+    By extending expectation axes to include security properties such as encryption in transit, encryption at rest,
+    authentication strength, and access control guarantees, organizations can unify security and observability into a
+    single, coherent operational model. This article presents a conceptual framework for security-extended expectation
+    chains, demonstrates how security requirements can be made observable and measurable, and provides concrete
+    architectural examples. The result is a generalized pattern that allows software engineers to reason about
+    availability, reliability, performance, and security using the same formal structure, enabling continuous
+    verification of both operational and security guarantees.
+</p>
+<hr/>
+<h2 class="center">Introduction</h2>
+<p>
+    Modern software systems are expected to be simultaneously fast, reliable, available, and secure. Historically, these
+    concerns have been managed using different frameworks, tools, and organizational structures. Reliability engineering
+    focuses on uptime, error rates, and latency. Security engineering focuses on confidentiality, integrity, and access
+    control. Observability practices provide insight into system behavior, while security monitoring focuses on threats
+    and violations. Although these domains are deeply interconnected, they are often modeled and measured independently.
+</p>
+<p>
+    Expectation chains provide a unifying abstraction for reasoning about distributed systems. An expectation chain
+    models a system as a sequence of provider–consumer relationships, where each interaction is governed by an explicit
+    expectation describing what the provider must deliver to satisfy the consumer. Originally, expectation chains
+    focused on three axes: availability, reliability, and performance. These axes map naturally to service-level
+    objectives and can be continuously measured using observability data.
+</p>
+<p>
+    This paper proposes extending expectation chains by adding security requirements as additional expectation
+    attributes. Rather than treating security as a policy layer or a separate monitoring concern, security properties
+    are expressed as formal expectations on the same edges that already encode availability and performance guarantees.
+    This extension allows security to be reasoned about, measured, and enforced using the same mechanisms that underpin
+    observability-driven system design.
+</p>
+<hr/>
+<h2 class="center">Expectation Chains and the Original Three Axes</h2>
+<p>
+    Expectation chains model how value flows through a system from provider to consumer. Each interaction between
+    components is governed by an expectation that defines the measurable conditions under which value is considered
+    successfully delivered (Caldwell, 2018). Expectations are directional and explicit: a provider satisfies an
+    expectation only if it meets the defined criteria.
+</p>
+<p>
+    Originally, expectation chains defined three axes:
+</p>
+<ol>
+    <li><strong>Availability</strong> – the ability of a provider to be accessed when needed.</li>
+    <li><strong>Reliability</strong> – the correctness and consistency of the provider’s behavior.</li>
+    <li><strong>Performance</strong> – the timeliness or throughput with which the provider delivers value.</li>
+</ol>
+<p>
+    These axes correspond closely to established reliability engineering concepts such as uptime, error budgets, and
+    latency service-level objectives (Beyer et al., 2016). Importantly, expectation chains do not prescribe how
+    expectations are measured; they only require that expectations be objectively verifiable.
+</p>
+<p>
+    Expectation chains differ from traditional SLAs in that they are compositional. High-level business expectations are
+    decomposed into lower-level technical expectations across dependencies. A failure at any point in the chain
+    propagates upward, making the root cause observable and traceable.
+</p>
+<hr/>
+<h2 class="center">Observability as the Measurement Mechanism for Expectations</h2>
+<p>
+    Observability enables engineers to determine whether a system’s expectations are being met based on emitted
+    telemetry (Charity & Crawford, 2018). Logs, metrics, and traces are merely data sources; observability is the
+    capability to infer system state from those signals.
+</p>
+<p>
+    Within an expectation chain model, observability data answers a single question: Is the expectation satisfied?
+    Availability expectations may be validated using synthetic probes or error rates. Reliability expectations may be
+    validated using correctness checks or invariant violations. Performance expectations may be validated using latency
+    distributions or throughput counters.
+</p>
+<p>
+    Crucially, observability is expectation-agnostic. Any property that can be measured can be expressed as an
+    expectation. This characteristic makes expectation chains extensible beyond the original three axes.
+</p>
+<hr/>
+<h2 class="center">Why Security Must Be Treated as an Expectation</h2>
+<p>
+    Security failures are not orthogonal to reliability failures. A data breach, authentication bypass, or encryption
+    failure represents a catastrophic violation of system guarantees, even if uptime and latency remain within
+    acceptable bounds. From the consumer’s perspective, a system that leaks sensitive data has failed, regardless of how
+    responsive it is.
+</p>
+<p>
+    Industry experience increasingly demonstrates that security and reliability failures are tightly coupled. Outages
+    often create security exposure, and security incidents frequently degrade availability and performance (Gupta,
+    2025). Treating security as a separate discipline results in fragmented visibility and delayed response.
+</p>
+<p>
+    By incorporating security requirements into expectation chains, security becomes:
+</p>
+<ul>
+    <li>Explicit rather than implicit</li>
+    <li>Measurable rather than assumed</li>
+    <li>Continuously verified rather than periodically audited</li>
+</ul>
+<p>
+    This aligns with modern DevSecOps principles and zero-trust architectures, which emphasize continuous verification
+    over static trust assumptions.
+</p>
+<hr/>
+<h2 class="center">Extending Expectation Axes With Security Attributes</h2>
+<p>
+    Security expectations can be expressed as additional attributes on expectation edges. These attributes define the
+    conditions under which an interaction is considered secure. The following sections describe common security
+    requirements and how they map to expectation chains.
+</p>
+<hr/>
+<h2 class="center">Encryption in Transit as an Expectation</h2>
+<p>
+    Encryption in transit ensures confidentiality and integrity of data exchanged between components. In an expectation
+    chain, encryption in transit can be expressed as a binary expectation:
+</p>
+<blockquote>
+    All data exchanged across this edge must be encrypted using approved cryptographic protocols.
+</blockquote>
+<p>
+    This expectation can be measured by observing protocol usage, certificate validation, or connection metadata. If
+    unencrypted traffic is detected, the expectation is violated regardless of latency or availability metrics.
+</p>
+<p>
+    Encryption in transit is widely recognized as a baseline security requirement for modern systems (Kast, 2025).
+    Treating it as an expectation ensures that regressions, misconfigurations, or unauthorized endpoints are detected
+    immediately.
+</p>
+<hr/>
+<h2 class="center">Operational Benefits of Unified Expectation Chains</h2>
+<p>
+    Extending expectation chains with security attributes provides several benefits:
+</p>
+<ol>
+    <li>Unified visibility across reliability and security</li>
+    <li>Reduced silos between engineering teams</li>
+    <li>Faster detection of misconfigurations and regressions</li>
+    <li>Objective security metrics aligned with business value</li>
+    <li>Improved incident response through shared observability context</li>
+    <li>This approach transforms security from a compliance activity into an operational discipline.</li>
+</ol>
+<hr/>
+<h2 class="center">Conclusions</h2>
+<p>
+    Expectation chains provide a powerful abstraction for reasoning about distributed systems. By extending expectation
+    axes to include security requirements, organizations can unify security and observability into a single operational
+    model. Security expectations become explicit, measurable, and continuously verified, eliminating blind spots and
+    reducing systemic risk.
+</p>
+<p>
+    In modern systems, a service that is fast and available but insecure has failed its fundamental promise.
+    Security-extended expectation chains provide a formal, observable, and scalable way to ensure that promise is kept.
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<p>
+    Beyer, B., Jones, C., Petoff, J., & Murphy, N. (2016). Site reliability engineering: How Google runs production
+    systems. O’Reilly Media.
+</p>
+<p>
+    Caldwell, S. (2018). Expectation chains: Observability by design. samcaldwell.net.
+</p>
+<p>
+    Caldwell, S. (2019). Expectation chains for developers. samcaldwell.net.
+</p>
+<p>
+    Charity, M., & Crawford, L. (2018). Observability engineering. O’Reilly Media.
+</p>
+<p>
+    Gupta, R. (2025). Building an effective SRE and security engineering team. Engineering Pulse.
+</p>
+<p>
+    Kast, B. (2025). Data encryption best practices. LMG Security.
+</p>
+<p>
+    Maynes, M. (2019). One simple action you can take to prevent 99.9 percent of attacks on your accounts. Microsoft
+    Secure Blog.
+</p>
+<p>
+    U.S. Cybersecurity and Infrastructure Security Agency. (2025). Four cybersecurity essentials for businesses. CISA.
+</p>
