@@ -32,6 +32,7 @@ keywords: grafana, expectation chains, observability, monitoring, alerting, obse
     <li>Expectation definitions (your small YAML schema)</li>
     <li>Grafana provisioning output (generated, not hand-edited)</li>
 </ul>
+{% raw %}
 <pre>
     repo/
     cdk/
@@ -57,6 +58,7 @@ keywords: grafana, expectation chains, observability, monitoring, alerting, obse
     alerting/
     dashboards/
 </pre>
+{% endraw %}
 <p>
     The <code>generated/</code> directory should be treated like a build artifact: created by Ansible templates and
     deployed to Grafana.
@@ -69,6 +71,7 @@ keywords: grafana, expectation chains, observability, monitoring, alerting, obse
     CloudFormation. (Amazon Web Services, n.d.)
 </p>
 <h3>Minimal CDK stack shape (EC2 + ALB example)</h3>
+{% raw %}
 <pre>
     // file: cdk/lib/expectations-stack.ts
     import * as cdk from "aws-cdk-lib";
@@ -135,6 +138,7 @@ keywords: grafana, expectation chains, observability, monitoring, alerting, obse
       }
     }
 </pre>
+{% endraw %}
 <p>What matters for the turn-key flow:</p>
 <ul>
     <li>CDK outputs identifiers and endpoints</li>
@@ -153,6 +157,7 @@ keywords: grafana, expectation chains, observability, monitoring, alerting, obse
     able to create/update/delete. (Grafana Labs, n.d.-b)
 </p>
 <h3>Playbook entrypoint</h3>
+{% raw %}
 <pre>
 # file: ansible/site.yml
 - name: Deploy Grafana expectation stack
@@ -162,9 +167,11 @@ keywords: grafana, expectation chains, observability, monitoring, alerting, obse
     - role: grafana_server
     - role: grafana_expectations
 </pre>
+{% endraw %}
 <hr/>
 <h2 class="center:">Role: grafana_server (install + baseline config)</h2>
 <h3>Tasks: install and configure provisioning path</h3>
+{% raw %}
 <pre>
 # file: ansible/roles/grafana_server/tasks/main.yml
 - name: Install Grafana (package method omitted for brevity)
@@ -192,11 +199,13 @@ keywords: grafana, expectation chains, observability, monitoring, alerting, obse
     state: started
     enabled: true
 </pre>
+{% endraw %}
 <p>
     This establishes the filesystem contract that makes the rest repeatable.
 </p>
 <hr/>
 <h2 class="center">Define a minimal expectation schema (example)</h2>
+{% raw %}
 <pre>
 # file: expectations/chains/checkout/payment_api.yml
 id: "checkout.payment_api"
@@ -233,9 +242,11 @@ performance:
     ) <= 0.300
   min_pass: 1.0
 </pre>
+{% endraw %}
 <p>This is intentionally “small”: it’s enough to generate alert rules and dashboards.</p>
 <h3>Render Grafana data sources provisioning (example)</h3>
 <p>Grafana provisioning supports data sources from config files. (Grafana Labs, 2025; Grafana Labs, n.d.-a)</p>
+{% raw %}
 <pre>
 # file: ansible/roles/grafana_expectations/templates/datasources.yml.j2
 apiVersion: 1
@@ -248,9 +259,11 @@ datasources:
     isDefault: true
     editable: false
 </pre>
+{% endraw %}
 <p>
     Deploy it:
 </p>
+{% raw %}
 <pre>
 # file: ansible/roles/grafana_expectations/tasks/datasources.yml
 - name: Provision Grafana datasources
@@ -262,7 +275,9 @@ datasources:
     mode: "0640"
   notify: Restart Grafana
 </pre>
+{% endraw %}
 <h3>Render dashboard providers + dashboard JSON placement (example)</h3>
+{% raw %}
 <pre>
 # file: ansible/roles/grafana_expectations/templates/dashboards-providers.yml.j2
 apiVersion: 1
@@ -277,6 +292,8 @@ providers:
     options:
       path: /var/lib/grafana/dashboards
 </pre>
+{% endraw %}
+{% raw %}
 <pre>
     # file: ansible/roles/grafana_expectations/tasks/dashboards.yml
 - name: Provision dashboard providers
@@ -297,6 +314,7 @@ providers:
     mode: "0640"
   notify: Restart Grafana
 </pre>
+{% endraw %}
 <h3>Render alert rules provisioning from expectations (example)</h3>
 <p>
     Grafana supports provisioning alerting resources via files and can create/update/delete at startup from those files.
@@ -313,6 +331,8 @@ providers:
 <p>
     Example Jinja2 template (shape-focused, not exhaustive):
 </p>
+# Example Jinja2 template (shape-focused, not exhaustive):
+{% raw %}
 <pre>
 # file: ansible/roles/grafana_expectations/templates/alert-rule-group.yml.j2
 apiVersion: 1
@@ -356,9 +376,11 @@ groups:
         annotations:
           summary: "Availability below threshold for {{ expectation.id }}"
 </pre>
+{% endraw %}
 <p>
     Then in tasks:
 </p>
+{% raw %}
 <pre>
 # file: ansible/roles/grafana_expectations/tasks/alerting.yml
 - name: Load expectation definitions
@@ -380,6 +402,7 @@ groups:
     chain_name: "{{ (item.path.split('/') | reverse)[1] }}"
   notify: Restart Grafana
 </pre>
+{% endraw %}
 <p>
     Notes:
 </p>
