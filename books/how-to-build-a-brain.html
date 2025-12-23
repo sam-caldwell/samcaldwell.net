@@ -1,0 +1,207 @@
+---
+layout: page
+title: <em>How to Build a Brain</em> – Summary for Software Developers
+date: 2014-07-11 00:00:00-0600
+description: A review of <em>How to Build a Brain</em> by Chris Eliasmith
+keywords: artificial intelligence, ai, machine learning, computer science
+---
+<hr/>
+<h3>Introduction and Motivation</h3>
+<p>
+    Chris Eliasmith’s <em>How to Build a Brain</em> (2013) offers a guided tour of constructing a working brain model in
+    software. Written for a cognitive science and artificial intelligence audience, it resonates with a 2014-era
+    developer’s curiosity about neural networks and intelligent systems. The core idea is bold: instead of merely
+    increasing neuron counts or relying on abstract AI algorithms, Eliasmith proposes a principled way to engineer a
+    brain-like system that exhibits meaningful behavior. Why build such a brain model? One motivation is that modeling
+    the brain can help us understand intelligence by deconstructing it. As one neuroscientist put it, “The advantage of
+    building a model is that we have access to all the pieces, so we can take it apart in ways we cannot take an actual
+    brain apart, which allows us to identify core operating principles” (Harvard Medical School, n.d.). In other words,
+    a simulated brain lets us experiment freely, revealing how cognitive functions might emerge from neural circuits.
+</p>
+<p>
+    Another motivation lies in bridging a gap in contemporary approaches. Neuroscience in the early 2000s produced
+    highly
+    detailed simulations of neurons (e.g., the Blue Brain Project simulating cortical columns), while AI developed
+    powerful task-solving algorithms (e.g., machine learning models), yet no unified theory connected low-level neural
+    activity to high-level cognition (Eliasmith, 2013; Eliasmith et al., 2012). Large-scale brain simulations reproduced
+    biological detail without explaining intelligence, whereas cognitive AI systems often ignored biology entirely. How
+    to Build a Brain sets out to unify these extremes. Eliasmith’s team took a different approach: instead of merely
+    increasing the number of simulated neurons, they focused on how neural activity gives rise to complex behavior
+    (Stewart, 2012). The book introduces the Neural Engineering Framework (NEF) as the theoretical backbone for building
+    biologically inspired cognitive models, and the Semantic Pointer Architecture (SPA) as a method for representing
+    knowledge in neural networks. Using these tools, the book culminates in Spaun, a brain model capable of seeing,
+    remembering, reasoning, and acting—a notable attempt to close the “brain–behavior gap” in modeling (Stewart,
+    2012).
+</p>
+<hr/>
+<h3>The Neural Engineering Framework (NEF)</h3>
+<p>
+    At the heart of Eliasmith’s approach is the Neural Engineering Framework (NEF), a set of principles for constructing
+    large-scale neural models (Eliasmith & Anderson, 2003). NEF treats populations of spiking neurons as programmable
+    elements that represent and transform information. The framework provides a high-level “language” for neural
+    computation, allowing neural circuits to be designed systematically and mathematically. In essence, NEF enables the
+    mapping of functions and dynamical systems onto networks of neurons while respecting biological constraints
+    (Eliasmith, 2013).
+</p>
+<p>
+    The NEF is built on three key principles (Eliasmith, 2013; Eliasmith & Anderson, 2003):
+</p>
+<ol style="list-style-type: none">
+    <li>
+        <h4>Representation</h4>
+        <p>
+            Neurons represent information through their collective spiking activity. In NEF, a population of neurons
+            encodes a time-varying vector. Each neuron has a tuning curve that determines how it responds to inputs. By
+            linearly decoding activity across the population, the encoded vector—or a transformation of it—can be
+            reconstructed (Eliasmith, 2013). Importantly, this principle applies to any neuron model, from simple point
+            neurons to detailed biophysical neurons, as long as response properties are known. Encoded vectors may have
+            arbitrary dimensionality, allowing complex information to be represented in a distributed fashion.
+        </p>
+    </li>
+    <li>
+        <h4>Transformation</h4>
+        <p>
+            Synaptic connections perform computations. NEF specifies how to compute synaptic weight matrices so that one
+            neural population can implement a desired function of another population’s activity (Eliasmith & Anderson,
+            2003). By solving optimization problems (often least-squares), both linear and nonlinear transformations can
+            be implemented. These weight matrices can be factorized into encoders, decoders, and linear transforms,
+            yielding low-rank structure that improves computational efficiency and suggests functional organization in
+            biological connectivity (Eliasmith, 2013).
+        </p>
+    </li>
+    <li>
+        <h4>Dynamics</h4>
+        <p>
+            Neural networks can maintain state and exhibit temporal behavior through recurrent connections. NEF applies
+            control theory to design recurrent weights such that neural activity implements specified dynamical systems
+            (e.g., integrators, oscillators, or memory buffers; Eliasmith, 2013). This capability is critical for
+            cognitive processes like working memory and decision-making, where internal state must persist and evolve
+            over time.
+        </p>
+    </li>
+</ol>
+<p>
+    Together, these principles enable a modular, “lego-block” approach to brain modeling, analogous to software
+    architecture or circuit design (Eliasmith, 2013). Eliasmith’s team developed the Nengo software platform, which acts
+    as a neural compiler: users specify models at a high level (ensembles, connections, and functions), and Nengo
+    generates the underlying spiking neural network implementation (Bekolay et al., 2014). This separation between
+    design logic and neural implementation is especially appealing from an engineering perspective.
+</p>
+<p>
+    Conceptually, NEF brings rigor to neural modeling by providing a coherent theory of representation and computation.
+    Using NEF, researchers have constructed unified models of vision, memory, motor control, and decision-making that
+    align with both behavioral and neural data (Eliasmith et al., 2012). In many cases, observed behaviors and neural
+    patterns emerge from the model’s constraints rather than being explicitly programmed, providing strong validation
+    for the approach.
+</p>
+<hr/>
+<h3>Semantic Pointer Architecture (SPA)</h3>
+<p>
+    Built on top of NEF, the Semantic Pointer Architecture (SPA) provides a framework for higher-level cognition
+    (Eliasmith, 2013). If NEF defines how neurons compute, SPA defines what they compute. A semantic pointer is a
+    high-dimensional vector that can compactly reference complex information while preserving semantic relationships
+    such as similarity (Eliasmith, 2013). The concept draws on vector symbolic architectures, particularly Holographic
+    Reduced Representations (Plate, 2003).
+</p>
+<p>
+    SPA addresses four main aspects of cognition: semantics, syntax, control, and learning/memory.
+</p>
+<h4>Semantics</h4>
+<p>
+    Raw sensory inputs are encoded into semantic pointers using NEF-based neural representations. For example, visual
+    stimuli are transformed into vectors capturing essential features, demonstrating how meaning can arise from neural
+    activity (Eliasmith, 2013).
+</p>
+<h4>Syntax (structure)</h4>
+<p>
+    Compositional structure is represented through binding and superposition operations, such as circular convolution.
+    These operations allow relationships, sequences, and propositions to be encoded in neurally plausible ways, enabling
+    symbolic-like reasoning within distributed representations (Plate, 2003; Eliasmith, 2013).
+</p>
+<h4>Control</h4>
+<p>
+    SPA includes a biologically grounded model of the basal ganglia to perform action selection and control. Semantic
+    pointers encoding task context guide the routing of information and execution of actions, implementing conditional
+    logic through neural gating mechanisms (Eliasmith, 2013).
+</p>
+<hr/>
+<h3>Learning/Memory</h3>
+<p>
+    SPA supports both short-term and long-term memory via recurrent networks and associative memories. While learning
+    was limited in Spaun, biologically plausible mechanisms such as dopamine-modulated plasticity were demonstrated
+    (Eliasmith et al., 2012).
+</p>
+<p>
+    In summary, SPA provides the cognitive “software” that runs on the neural hardware organized by NEF, bridging
+    symbolic reasoning and neural computation.
+</p>
+<hr/>
+<h3>The Spaun Model: A Brain In Action</h3>
+<p>
+    The culmination of NEF and SPA is Spaun (Semantic Pointer Architecture Unified Network), a large-scale spiking
+    neural model consisting of approximately 2.5 million neurons (Eliasmith et al., 2012). Spaun integrates perception,
+    memory, reasoning, and motor control within a single architecture, corresponding to multiple brain regions.
+</p>
+<p>
+    Spaun performs eight cognitive tasks, including digit recognition, serial recall, arithmetic, and pattern
+    completion, using a fixed neural architecture controlled by context cues (Eliasmith et al., 2012). Its ability to
+    solve simplified Raven’s Progressive Matrices highlights its capacity for generalization beyond rote memorization.
+</p>
+<p>
+    Spaun’s perception–action loop spans visual processing, working memory encoding, decision-making via basal ganglia
+    control, and motor output through a simulated arm (Eliasmith et al., 2012; Stewart, 2012). Although much of the
+    architecture was hand-designed rather than learned, Spaun serves as a proof-of-concept demonstrating that integrated
+    cognition can emerge from spiking neural systems.
+</p>
+<hr/>
+<h3>Reflections on Cognition and Computation</h3>
+<p>
+    Eliasmith’s work demonstrates that high-level cognition can arise from low-level neural dynamics when appropriately
+    organized. From a computational perspective, NEF advocates a form of parallel, dynamical, vector-based computing
+    distinct from both von Neumann architectures and conventional deep learning systems (Eliasmith, 2013). The framework
+    aligns naturally with neuromorphic computing and offers a path toward interpretable, biologically grounded AI
+    systems.
+</p>
+<hr/>
+<h3>Conclusion</h3>
+<p>
+    <em>How to Build a Brain</em> presents a rigorous and optimistic vision for constructing brain-like cognitive
+    systems. Through NEF and SPA, Eliasmith shows how neurons can be engineered into functional architectures capable of
+    perception, memory, reasoning, and action. Spaun stands as a landmark demonstration that building a simplified brain
+    is not only possible but scientifically fruitful. While the model is necessarily incomplete, it is, as one
+    commentator noted, “wrong but useful” (Stewart, 2012). Its enduring value lies in providing a unified platform for
+    exploring how cognition might be implemented in neural hardware.
+</p>
+<hr/>
+<h2>References</h2>
+<p>
+    Bekolay, T., Bergstra, J., Hunsberger, E., DeWolf, T., Stewart, T. C., Rasmussen, D., … Eliasmith, C. (2014). Nengo:
+    A Python tool for building large-scale functional brain models. Frontiers in Neuroinformatics, 7, 48.
+    https://doi.org/10.3389/fninf.2013.00048
+</p>
+<p>
+    Eliasmith, C. (2013). How to build a brain: A neural architecture for biological cognition. Oxford University Press.
+    https://global.oup.com
+</p>
+<p>
+    Eliasmith, C., & Anderson, C. H. (2003). Neural engineering: Computation, representation, and dynamics in
+    neurobiological systems. MIT Press.
+</p>
+<p>
+    Eliasmith, C., Stewart, T. C., Choo, X., Bekolay, T., DeWolf, T., Tang, Y., & Rasmussen, D. (2012). A large-scale
+    model of the functioning brain. Science, 338(6111), 1202–1205. https://doi.org/10.1126/science.1225266
+</p>
+<p>
+    Harvard Medical School. (n.d.). Neuroscience research and modeling. https://hms.harvard.edu
+</p>
+<p>
+    Plate, T. A. (2003). Holographic reduced representation: Distributed representation for cognitive structures. CSLI
+    Publications.
+</p>
+<p>
+    Stewart, T. C. (2012). Building a brain. IEEE Spectrum. https://spectrum.ieee.org
+</p>
+<p>
+    Trenton Bricken. (n.d.). Review of How to Build a Brain. https://trentonbricken.com
+</p>
+
