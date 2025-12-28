@@ -10,6 +10,12 @@ body {
     color: #ffffff;
 }
 
+/* Indentation utility: indent content by ~5 characters */
+.indented {
+    padding-inline-start: 5ch;
+    padding-left: 5ch; /* fallback */
+}
+
 /* Header text color override */
 header {
     color: #F0F0F0;
