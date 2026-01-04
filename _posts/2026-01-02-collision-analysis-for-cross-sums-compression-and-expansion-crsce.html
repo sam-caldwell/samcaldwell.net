@@ -1,0 +1,380 @@
+---
+layout: page
+title: Collision Analysis for Cross-Sums Compression and Expansion (CRSCE)
+date: 2026-01-02 09:42:29-0600
+description: This post presents a mathematical analysis of collision risk in the Cross-Sums Compression and Expansion (CRSCE) algorithm.
+keywords: CRSCE, Cross-Sums Compression and Expansion, compression, data compression, information theory, mathematics, computer science
+math: true
+---
+
+<hr/>
+<h2 class="center">Abstract</h2>
+<br/>
+<p>
+    Cross-Sums Compression and Expansion (CRSCE) represents a binary block using (i) a structured set of cross-sum
+    constraints—line sums in multiple directions—and (ii) a cryptographic lateral hash (LH) mechanism derived from
+    SHA-256. Concerns about “collisions” arise because cross-sums alone are not injective: distinct binary grids can
+    share identical line-sum signatures, a phenomenon extensively studied in discrete tomography. CRSCE addresses this
+    ambiguity by binding the block content to cryptographic hashes. This paper develops a rigorous collision analysis
+    under explicit probabilistic assumptions. For $s=511$, we derive a defensible upper bound on the probability that
+    two uniformly random $511 \times 511$ binary grids collide in the CRSCE cross-sum signature, then derive the
+    probability of a collision in the stored SHA-256 hash sequence, and finally combine these results under an
+    independence assumption to obtain an overall collision probability. Under the stated model, the combined
+    probability is approximately $8.4 \times 10^{-40199.54} \approx 10^{-40198.62}$, establishing that CRSCE collision
+    risk is astronomically small in any practical sense.
+</p>
+<hr/>
+<h2 class="center">Introduction</h2>
+<br/>
+<p>
+    CRSCE encodes a binary block of size $s \times s$ (where $s=511$ as a design constant) using multiple constraint
+    “views” of the same underlying grid. The cross-sum signature consists of line sums measured in four directions
+    (e.g., horizontal, vertical, and two diagonal families). These line sums restrict the feasible reconstruction space
+    but do not generally determine a unique binary grid. This non-uniqueness is a classical and well-understood property
+    of line-sum constraints (Gardner & Gritzmann, 1997). In discrete tomography terminology, line sums are discrete
+    X-rays; with only a small number of projection directions, multiple reconstructions typically exist (Gardner &
+    Gritzmann, 1997), and reconstruction can be computationally difficult in general (Brunetti, Del Lungo, Gritzmann, &
+    de Vries, 2008).
+</p>
+<p>
+    CRSCE therefore incorporates a cryptographic mechanism—a lateral hash (LH) derived from SHA-256—to ensure practical
+    uniqueness at decompression. SHA-256 is standardized by NIST and produces 256-bit digests (National Institute of
+    Standards and Technology [NIST], 2015). Security-strength guidance for approved hash functions is provided by NIST,
+    including distinctions among collision resistance, preimage resistance, and second-preimage resistance (Dang, 2012).
+    Formal separations among these notions are standard in modern cryptographic literature (Rogaway & Shrimpton, 2004).
+</p>
+<p>
+    This paper addresses the collision concern precisely: how small is the probability that CRSCE metadata (cross-sums
+    plus $LH$) collides for two different blocks under explicit probabilistic assumptions?
+</p>
+<hr/>
+<h2 class="center">Definitions and Probabilistic Model</h2>
+<br/>
+<h3>Block Model</h3>
+<br/>
+<p>
+    Let $G\ ∈\ \{0,1\}^{s \times s}$ be a binary grid with $s=511$. We analyze collisions under the following standard
+    experiment:
+</p>
+<ul>
+    <li>Sample $\mathrm{G} ∈ \{0,1\}^{s \times s}$.</li>
+</ul>
+<p>
+    This is the conventional baseline for collision analysis in compression/encoding contexts: two independently random
+    messages are compared for equality under a derived representation.
+</p>
+<br/>
+<h3>CRSCE cross-sum signature</h3>
+<br/>
+<p>
+    Define the cross-sum operator $\mathcal{C}(\cdot)$ that maps a grid $\mathrm{G}$ to its four cross-sum vectors:
+    $$
+    \mathcal{C}(G) = (\mathrm{LSM},\, \mathrm{VSM},\, \mathrm{DSM},\, \mathrm{XSM}),
+    $$
+    where each vector has length $s$, and each entry is a line sum in $\{0,\cdots, s\}$. Because $s=511$, each entry
+    fits in $ b = \left[\log_2(s+1)\right] = \left[\log_2(512)\right] = 9 $ bits.
+</p>
+<p>
+    A cross-sum collision occurs when $ \mathcal{C}(G_1) = \mathcal{C}(G_2) $.
+</p>
+<br/>
+<h3>Lateral hash (LH) verification data</h3>
+<br/>
+<p>
+    Let $ \mathcal{H}(G)$ denote $LH$data derived from SHA-256. SHA-256 outputs 256-bit digests (NIST, 2015). In CRSCE,
+    $LH$ is treated as a sequence of per-row digests, potentially chained from a constant seed. For collision analysis,
+    the relevant event is that the entire stored $LH$ sequence matches:
+    $$
+    \mathcal{H}(G_1) = \mathcal{H}(G_2).
+    $$
+    A hash collision in this context means equality of the stored $LH$ verification data for two independently sampled
+    blocks.
+</p>
+<br/>
+<h3>CRSCE metadata collision</h3>
+<br/>
+<p>
+    Define the full metadata as:
+    $$
+    \mathcal{V}(G)=(\mathcal{C}(G),\mathcal{H}(G)).
+    $$
+    A CRSCE collision occurs if $\mathcal{V}(G_1) = \mathcal{V}(G_2)$.
+</p>
+<hr/>
+<h2 class="center">Collision Probability of the Cross-Sums</h2>
+<br/>
+<p>
+    Computing $Pr[\mathcal{C}(G_1) = \mathcal{C}(G_2)]$ exactly is not tractable in closed form because the four
+    families of line sums are dependent and encode structured constraints. However, CRSCE collision risk can be
+    addressed rigorously using bounds. We derive a defensible upper bound by observing that a full cross-sum collision
+    implies a collision in the row-sum vector $LSM$ alone.
+</p>
+<br/>
+<h3>Reduction to row-sum collisions</h3>
+<br/>
+<p>
+    Let $\mathcal{C}_{LSM}(G) = LSM$. Then:
+    $$
+    \{C(G_1)=C(G_2)\} \subseteq \{C_{\mathrm{LSM}}(G_1)=C_{\mathrm{LSM}}(G_2)\}.
+    $$
+    Therefore:
+    $$
+    \Pr\!\bigl[C(G_1)=C(G_2)\bigr] \le \Pr\!\bigl[\mathrm{LSM}(G_1)=\mathrm{LSM}(G_2)\bigr].
+    $$
+    The right-hand side is computable.
+</p>
+<br/>
+<h3>Exact probability that two random rows have equal Hamming weight</h3>
+<br/>
+<p>Fix a row length $s$. Under the uniform grid model, each row is i.i.d. Bernoulli(1/2) accross positions, so the row
+    sum $\mathcal{S}$ is distributed as:
+    $$
+    \mathcal{S} \sim \mathrm{Bin}(s/2).
+    $$
+    Thus:
+    $$
+    \Pr[S = k] = \binom{s}{k}\,p^{k}\,(1-p)^{\,s-k}.
+    $$
+    For two independent rows with sums $\mathcal{S}_1$ and $\mathcal{S}_2$,
+    $$
+    \Pr[S_1 = S_2]
+    = \sum_{k=0}^{s} \Pr[S_1 = k]\Pr[S_2 = k]
+    = \sum_{k=0}^{s} \left(\frac{\binom{s}{k}}{2^{s}}\right)^{2}.
+    $$
+    using the identity
+    $$
+    \sum_{k=0}^{s} \binom{s}{k}^{2} = \binom{2s}{s}.
+    $$
+    the probability becomes:
+    $$
+    \Pr[S_1 = S_2] = \frac{\binom{2s}{s}}{4^{s}}.
+    $$
+    This identity and its use in binomial probability manipulations are standard results in combinatorics and
+    probability (Feller, 1968; Graham, Knuth, & Patashnik, 1994).
+</p>
+<br/>
+<h3>Probability that two random LSM vectors match</h3>
+<br/>
+<p>
+    An LSM vector consists of $s$ independent row sums under the uniform grid model. Therefore:
+    $$
+    \Pr\!\bigl[\mathrm{LSM}(G_1)=\mathrm{LSM}(G_2)\bigr] = \left(\frac{\binom{2s}{s}}{4^{s}}\right)^{s}.
+    $$
+    For $s=511$,
+    $$
+    \Pr\!\bigl[\mathrm{LSM}(G_1)=\mathrm{LSM}(G_2)\bigr] = \left(\frac{\binom{1022}{511}}{4^{511}}\right)^{511}.
+    $$
+    Evaluating numerically yields:
+    $$
+    log_{10}Pr[LSM\ collision] \approx -819.0776,
+    $$
+    so
+    $$
+    Pr[LSM\ collision] \approx 8.36 x 10^{-820}.
+    $$
+</p>
+<br/>
+<h3>Cross-sum collision bound</h3>
+<br/>
+<p>
+    Since a full CRSCE cross-sum collision requires at least an LSM collision:
+    $$
+    \Pr\!\bigl[C(G_1)=C(G_2)\bigr] \le 8.36 \times 10^{-820}.
+    $$
+    This bound is already astronomically small. Importantly, it is also conservative: adding the additional constraints
+    $VSM$, $DSM$, and $XSM$ can only reduce the collision probability further because it shrinks the set of grids that
+    collide under the complete signature.
+</p>
+<hr/>
+<h2 class="center">Collision Probability of the Lateral Hash (LH) Data</h2>
+<br/>
+<h3>SHA-256 output space and modeling assumption</h3>
+<br/>
+<p>
+    SHA-256 produces 256-bit digests (NIST, 2015). A standard engineering model treats the hash output as uniformly
+    distributed over $\{0,1\}^{256}$ for distinct inputs, consistent with the ideal-hash heuristic used in cryptographic
+    reductions and security-strength discussions (Dang, 2012; Rogaway & Shrimpton, 2004). Under that model, for a fixed
+    256-bit target digest $y$,
+    $$
+    Pr\left[H(M) = y\right] = 2^{-256}
+    $$
+    for a randomly selected input $M$ independent of $y$.
+</p>
+<br/>
+<h3>Probability that two blocks match a stored 511-entry $LH$ vector</h3>
+<br/>
+<p>
+    CRSCE stores an $LH$ vector indexed by row $r ∈ \{0,\cdots, s-1\}$. Under a “per-row hash vector” interpretation,
+    the
+    stored verification data includes $s=511$ digests of 256 bits each. The probability that two independently sampled
+    blocks produce identical 511-entry $LH$ hash vectors is therefore:
+    $$
+    Pr\left[\mathcal{H}(G_1) = \mathcal{H}(G_2)\right] = 2^{256 \cdot 511}.
+    $$
+    Numerically,
+    $$
+    log_{10}Pr\left[\mathcal{H}\ collision\right] = -256 \cdot 511 \cdot log_{10}2 \approx -39379.5399,
+    $$
+    so
+    $$
+    Pr\left[\mathcal{H}\ collision\right] \approx 10^{-39379.54}
+    $$
+</p>
+<br/>
+<h3>Chained $LH$ interpretation</h3>
+<br/>
+<p>
+    If $LH$ is implemented as a hash chain seeded by a constant value, equality of the stored intermediate digests
+    $(LH[0],\cdots, LH[510])$ between two independent blocks implies a sequence of 511 equalities on 256-bit hash
+    outputs. Under the standard random-function heuristic, the chain rule yields the same product form for matching all
+    stored intermediate values:
+    $$
+    \Pr\!\bigl[\mathrm{LH}[0..510]\ \text{match}\bigr]
+    = \prod_{r=0}^{510} \Pr\!\bigl[\mathrm{LH}[r]\ \text{match}\mid \mathrm{LH}[0..r-1]\ \text{match}\bigr]
+    \approx \left(2^{-256}\right)^{511}
+    = 2^{-256\cdot 511}.
+    $$
+    Thus the stated $10^{-39379.54} value remains the appropriate collision probability for equality of a fully stored
+    511-step $LH$ sequence under the ideal-hash heuristic.
+</p>
+<hr/>
+<h2 class="center">Combined Collision Probability for CRSCE</h2>
+<br/>
+<p>
+    We now combine the cross-sum collision bound with the $LH$ collision probability.
+</p>
+<p>
+    Let
+    $$
+    p_{\mathrm{CSM}} = \Pr\!\bigl[C(G_1)=C(G_2)\bigr],\qquad
+    p_{\mathrm{LH}} = \Pr\!\bigl[\mathcal{H}(G_1)=\mathcal{H}(G_2)\bigr].
+
+    $$
+    A CRSCE collision requires both
+    $$
+    \{\mathcal{V}(G_1)=\mathcal{V}(G_2)\}
+    = \{C(G_1)=C(G_2)\}\cap\{\mathcal{H}(G_1)=\mathcal{H}(G_2)\}.
+    $$
+</p>
+<br/>
+<h3>Independence-based synthesis (as requested)</h3>
+<br/>
+<p>
+    Assuming the two events are independent (an explicit modeling assumption), we obtain:
+    $$
+    p_{CRSCE}=P_{CSM} \cdot P_{LH}.
+    $$
+    Using
+    $$
+    p_{\mathrm{CSM}} \le 8.36 \times 10^{-820}, \qquad
+    p_{\mathrm{LH}} \approx 10^{-39379.54}.
+    $$
+    we get:
+    $$
+    p_{\mathrm{CRSCE}}
+    \le (8.36 \times 10^{-820})\cdot 10^{-39379.54}
+    = 8.36 \times 10^{-40199.54}.
+    $$
+    Equivalently, converting to a single power of ten:
+    $$
+    8.36 \times 10^{-40199.54} = 10^{\log_{10}(8.36) - 40199.54} \approx 10^{-40198.62}.
+
+    $$
+    Therefore,
+    $$
+    p_{CRSCE} \approx 10^{-40198.62}.
+    $$
+</p>
+<br/>
+<h3>A conservative inequality (always valid)</h3>
+<br/>
+<p>
+    Even without independence, a rigorous inequality holds:
+    $$
+    Pr\!\bigl[C \cap \mathcal{H}\bigr] \le \Pr\!\bigl[\mathcal{H}\bigr] \approx 10^{-39379.54},
+
+    $$
+    because the intersection event is a subset of the hash-collision event. The independence-based product is therefore
+    strictly stronger (smaller) than what is required to establish practical infeasibility.
+</p>
+<hr/>
+<h2 class="center">Interpretation and Practical Significance</h2>
+<br/>
+<h3>"Astronomically small" in Operational Terms</h3>
+<p>
+    Values on the order of $10^{−40199}$ are beyond any operational relevance. Even extremely large-scale computation
+    cannot make such probabilities tangible. This is precisely why cryptographic verification is used: it reduces
+    acceptance of incorrect reconstructions to events dominated by hash collisions or second-preimages, which are
+    treated as negligible under established security-strength guidance (Dang, 2012; NIST, 2015).
+</p>
+<br/>
+<h3>Distinguishing existence from risk</h3>
+<br/>
+<p>
+    It is essential to distinguish:
+</p>
+<ol>
+    <li>Existence of multiple cross-sum solutions (expected, and supported by discrete tomography theory), from</li>
+    <li>Risk that an incorrect solution passes $LH$ verification (negligible under standard assumptions).</li>
+</ol>
+<p>
+    The first is a structural feature of line-sum constraints (Gardner & Gritzmann, 1997). The second is controlled by
+    cryptographic design and security strength (Dang, 2012; Rogaway & Shrimpton, 2004).
+</p>
+<br/>
+<h3>What this analysis does—and does not—claim</h3>
+<br/>
+<p>
+    This analysis does not claim that collisions are mathematically impossible. Instead, it establishes that under
+    standard assumptions accepted in professional cryptography and NIST guidance, the probability of a CRSCE metadata
+    collision is so small that it can be treated as negligible for scientific and engineering purposes.
+</p>
+<hr/>
+<h2 class="center">Conclusion</h2>
+<br/>
+<p>
+    For $s=511$,CRSCE cross-sums alone permit ambiguity, but collision probability for the complete cross-sum signature
+    is already extremely small when interpreted as equality between two uniformly random blocks. A rigorous upper bound
+    derived from row-sum collisions yields approximately $8.36 \times 10^{-820}$. Independently, the probability that
+    two blocks match a stored 511-entry SHA-256 $LH$ sequence is approximately $2^{256\cdot 511} \approx
+    10^{-39379.54}$.
+    Under an explicit independence assumption between these events, the combined CRSCE metadata collision probability
+    is approximately $8.36 \times 10^{-40199.54} \approx 10^{-40198.62}$. Even without independence, the collision
+    probability is bounded above by the hash collision term alone. Consequently, the collision concern for CRSCE—when
+    cross-sums are paired with SHA-256-based $LH$ verification—is resolved in the strongest practical sense: the
+    probability is astronomically small.
+</p>
+<hr/>
+<h2 class="center">References</h2>
+<br/>
+<p>
+    Brunetti, S., Del Lungo, A., Gritzmann, P., & de Vries, S. (2008). On the computational complexity of reconstructing
+    binary matrices with prescribed marginals. Theoretical Computer Science, 406(1–2), 63–71.
+    https://doi.org/10.1016/j.tcs.2008.06.014
+</p>
+<p>
+    Dang, Q. (2012). Recommendation for applications using approved hash algorithms (NIST Special Publication 800-107
+    Revision 1). National Institute of Standards and Technology. https://doi.org/10.6028/NIST.SP.800-107r1
+</p>
+<p>
+    Feller, W. (1968). An introduction to probability theory and its applications (3rd ed., Vol. 1). Wiley.
+    https://archive.org/details/introductiontopr01fell
+</p>
+<p>
+    Gardner, R. J., & Gritzmann, P. (1997). Discrete tomography: Determination of finite sets by X-rays. Transactions of
+    the American Mathematical Society, 349(6), 2271–2295. https://doi.org/10.1090/S0002-9947-97-01741-8
+</p>
+<p>
+    Graham, R. L., Knuth, D. E., & Patashnik, O. (1994). Concrete mathematics: A foundation for computer science (2nd
+    ed.). Addison-Wesley.
+</p>
+<p>
+    National Institute of Standards and Technology. (2015). Secure Hash Standard (SHS) (FIPS PUB 180-4).
+    https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
+</p>
+<p>
+    Rogaway, P., & Shrimpton, T. (2004). Cryptographic hash-function basics: Definitions, implications, and separations
+    for preimage resistance, second-preimage resistance, and collision resistance. In Fast Software Encryption (FSE
+    2004) (Lecture Notes in Computer Science, Vol. 3017, pp. 371–388). Springer.
+    https://doi.org/10.1007/978-3-540-25937-4_24
+</p>
