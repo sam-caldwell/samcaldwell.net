@@ -1,0 +1,293 @@
+---
+layout: page
+title: Can a society without law and order trust security keys held by a third party?
+date: 2026-02-08 22:57:29-0600
+description:
+keywords: security, trust, third-party, law and order, society, alex pretti, ice, minneapolis
+---
+
+<p>
+    Cryptography is often marketed as certainty: a branch of mathematics that does not bend to politics, panic, or the
+    persuasion of retaliation, unemployment or canceled contracts. An encryption key is either secure or it is not. A
+    signature is either valid or it is not. In that narrow, technical sense, keys are trustworthy—because they are not
+    moral actors.
+</p>
+<p>
+    <strong>But modern “security keys” rarely live in a vacuum</strong>. Increasingly, they are held, mediated,
+    synchronized, recovered, or attested by someone else: a platform vendor, a password manager, a hardware
+    manufacturer, an identity provider, or a cloud service. Even passkeys—marketed as the end of passwords—typically
+    depend on ecosystems that include device operating systems, backup and sync services, and account recovery
+    mechanisms. This is not inherently sinister; it is how usable security is built at scale. Yet it forces a civic
+    question that technology alone cannot answer: Can a society that cannot reliably impose consequences on those who
+    exercise unchecked or coercive power trust security keys that are, in practice, held or influenced by a third party?
+</p>
+<p>
+    This is not a fresh question. But those of us who have cautioned about these matters have often been dismissed as
+    alarmists or conspiracy theorists.
+</p>
+<p>
+    In the 1990s, the United States government promoted the “Clipper Chip” as part of the Escrowed Encryption Standard:
+    strong encryption for communications paired with a built-in key escrow mechanism so law enforcement could decrypt
+    when “lawfully authorized” (National Institute of Standards and Technology [NIST], 1994). From the start, the fight
+    was about more than circuitry. Key escrow was a claim that the state should have a durable, engineered path to
+    plaintext. Critics heard something else: that the state wanted encryption that citizens could use only so long as
+    the state maintained privileged access.
+</p>
+<p>
+    Technical critique arrived quickly. <strong>Matt Blaze’s 1994 analysis identified serious weaknesses in the escrow
+    protocol design</strong>, sharpening public skepticism about whether “lawful access” could be engineered without
+    creating new failure modes and new powers (Blaze, 1994). NIST responded publicly, defending the technology and
+    emphasizing that it was <i>voluntary</i>—an early illustration of a recurring pattern: when public trust is low,
+    “voluntary” often reads as “voluntary until it isn’t” (NIST, 1994).
+</p>
+<p>
+    Then came another object lesson: Lavabit. In 2013, Lavabit became the center of a high-profile legal conflict after
+    U.S. investigators sought the service’s TLS/SSL private key—an asset that could, by design, expose the security of
+    the entire service, not merely one user (Zetter, 2013). Court records in the Fourth Circuit describe a sequence of
+    orders—under the Pen/Trap statute and the Stored Communications Act—pressuring Lavabit to provide keys (United
+    States v. Lavabit, LLC, 2014). Lavabit’s founder argued that surrendering those keys would put all customers at
+    risk, and the company ultimately shut down rather than continue operating under those demands (Zetter, 2013).
+    Whether one sees that as principled resistance or stubborn obstruction, the civic message was unmistakable: when the
+    state wants access badly enough, the technical and legal fight can shift from “give us the target” to “give us the
+    infrastructure.”
+</p>
+<p>
+    In the wake of the San Bernardino attack, these tensions escalated into the Apple–FBI dispute over a locked iPhone,
+    with the government seeking to compel Apple to assist in bypassing security protections (Cook, 2016; Gibbs, 2016).
+    Around that period, Senator John Cornyn publicly participated in the “going dark” framing in Senate Judiciary
+    discussions: pressing FBI Director James Comey on whether encryption was “part of terrorist tradecraft,” whether
+    end-to-end encryption could make communications unreadable even with a court order, and whether Congress should “do
+    something about this” rather than rely on voluntary industry cooperation (U.S. Senate Committee on the Judiciary,
+    2015; Sforza, 2015). Again, the rhetorical contest was about more than a phone. It was about who gets the last word:
+    the citizen holding a key, or the institutions that can demand compliance.
+</p>
+<p>
+    Against that history, the present question becomes sharper—not because encryption is weaker now, but because the
+    social conditions around encryption can be weaker.
+</p>
+<hr/>
+<h3>Keys are claims about power, not just secrets</h3>
+<hr/>
+<p>
+    A private key is an exclusion mechanism. It says: only the holder can decrypt; only the holder can sign; only the
+    holder can authenticate. Passkeys—a FIDO/WebAuthn approach intended to replace passwords—strengthen this promise by
+    making authentication phishing-resistant and by avoiding server-side password databases (FIDO Alliance, n.d.; World
+    Wide Web Consortium [W3C], 2021). In U.S. government guidance, phishing-resistant authenticators are treated as
+    central to modern authentication practice (Temoshok et al., 2025).
+</p>
+<p>
+    So far, so good: fewer passwords to steal, less credential stuffing, and a smaller blast radius when databases leak.
+</p>
+<p>
+    But a key only functions as freedom if the holder can refuse. The moment refusal becomes impossible—through seizure,
+    compulsion, intimidation, or consequence-free violence—the private key stops being “private” in the way that
+    matters. The math still works. The social promise does not.
+</p>
+<p>
+    That is why the question of “law and order” belongs in the encryption debate. “Law and order,” at its best, does not
+    mean harshness. It means predictable restraint: rules that bind the powerful as well as ordinary people, procedures
+    that are followed, investigations that are credible, and consequences that are real when wrongdoing occurs. When
+    those conditions fail, trust does not simply decline—it becomes irrational to maintain.
+</p>
+<hr/>
+<h3>When bodily impunity feels plausible, digital trust becomes fragile</h3>
+<hr/>
+<p>
+    Incidents like the recent killing of Alex Pretti in Minneapolis matter for the encryption debate because they shape
+    what citizens believe about accountability—especially when video evidence, competing official narratives, and
+    jurisdictional complexity collide.
+</p>
+<p>
+    ABC News compiled a minute-by-minute timeline based on multiple verified videos of the encounter with federal
+    officers in Minneapolis on January 24, 2026, reporting that the videos did not appear to support certain official
+    assertions about Pretti’s behavior during the incident (ABC News, 2026). Separate reporting described sworn witness
+    accounts and a physician’s affidavit alleging that Pretti was pinned on the ground and suffered multiple gunshot
+    wounds, with most wounds described as being in his back (The Guardian, 2026). Meanwhile, local reporting has
+    emphasized how difficult it can be to prosecute federal officers in state court, given doctrines and defenses that
+    can narrow state authority even when state officials seek accountability (Day, 2026).
+</p>
+<p>
+    This article does not pretend to adjudicate guilt from afar. The point here is civic, not forensic. When a society
+    watches an encounter that appears (to many viewers) to involve overwhelming control of a suspect and then lethal
+    force (read "extra-judicial execution")—followed by an accountability pathway that looks structurally obstructed—
+    people absorb a lesson about where power ultimately resides. And once a society internalizes that lesson, it becomes
+    rational to ask: if coercive power can be applied to bodies without credible consequence, why would anyone assume it
+    will not be applied—directly or indirectly—to keys?
+</p>
+<h3>The third-party reality: most keys now live inside institutions</h3>
+<p>
+    When people hear “third party” in cryptography, they often think of overt key escrow or mandated backdoors. That is
+    only one—and the most politically radioactive—form of third-party involvement. In everyday life, third parties sit
+    in the system in subtler ways:
+</p>
+<ul>
+    <li>Platform vendors maintain secure enclaves, keystores, and credential managers where keys reside.</li>
+    <li>Cloud services sync credentials across devices.</li>
+    <li>Identity providers broker authentication decisions and session issuance.</li>
+    <li>Recovery workflows become human and bureaucratic override channels.</li>
+    <li>Hardware makers control firmware updates and attestation behavior.</li>
+</ul>
+<p>
+    None of this necessarily means a third party literally possesses your private key. But it often means a third party
+    controls the conditions under which you can use your key—and the processes by which someone else can attempt to make
+    you use it.
+</p>
+<p>
+    In a society with strong rule-of-law norms, people accept this arrangement because there are guardrails: warrants,
+    judicial review, public scrutiny, meaningful remedies, and credible consequences for abuse. In a society where
+    accountability is perceived as optional for those who wield force, those guardrails start to look like theater. The
+    “third party” stops looking like a reliability layer and starts looking like a leverage point.
+</p>
+<hr/>
+<h3>End-to-end encryption does not eliminate coercion; it reallocates it</h3>
+<hr/>
+<p>
+    Platform providers rightly emphasize end-to-end encrypted syncing for certain keychain and credential systems.
+    Apple, for example, describes iCloud Keychain as end-to-end encrypted such that even Apple cannot read the contents
+    while in transit or storage (Apple, 2024). That matters. It reduces exposure to mass compromise, certain insider
+    risks, and compelled disclosure demands aimed at the provider.
+</p>
+<p>
+    But it does not answer the civic question. End-to-end encryption can protect data from the cloud provider; it cannot
+    protect data from the fact that devices live in pockets, homes, workplaces, and traffic stops—and that the state has
+    unique powers over those spaces. Nor does it eliminate the reality that third parties still govern critical parts of
+    the lifecycle: device security policy, credential syncing availability, account recovery, and compliance posture
+    when served with orders.
+</p>
+<p>
+    Lavabit illustrates the “infrastructure squeeze” problem: when the state cannot easily isolate a single target,
+    pressure can shift to shared technical choke points, like service keys (United States v. Lavabit, LLC, 2014; Zetter,
+    2013). Clipper illustrates the “built-in access” temptation: engineer lawful access into the design itself (NIST,
+    1994). San Bernardino illustrates the “compelled assistance” strategy: if you cannot break the device, compel the
+    maker to help (Cook, 2016; Gibbs, 2016). In each case, the social question is the same: what restrains power when
+    power wants access?
+</p>
+<hr/>
+<h3>The passkey paradox: better security can increase the value of coercion</h3>
+<hr/>
+<p>
+    Passwords are weak, but they diffuse power. A password can be forgotten, mistyped, reset, or plausibly denied as
+    compromised. Passkeys reduce those failure modes. They also reduce a user’s ability to resist coercion through
+    friction.
+</p>
+<p>
+    Passkeys are designed to be fast and low-friction: approve with a biometric or device PIN and you are in (FIDO
+    Alliance, n.d.; W3C, 2021). From a user-experience perspective, that is the point. From a civil-liberties
+    perspective, it changes the texture of compulsion. If authentication becomes as simple as placing a device in front
+    of someone’s face or pressing their finger to a sensor, then the boundary between consent and coercion can become
+    thinner in practice, even if it remains clear in law.
+</p>
+<p>
+    This is not an argument against passkeys. It is an argument that authentication technology cannot substitute for
+    institutional restraint. And there is no restraint if there are not consequences for state actors who attempt to
+    ignore or act in bad faith.
+</p>
+<hr/>
+<h3>Trust is downstream of consequences</h3>
+<hr/>
+<p>
+    A society can sustainably ask people to trust third-party ecosystems around keys only if it can credibly demonstrate
+    five things:
+</p>
+<ol>
+    <li>
+        Investigations are independent. Abuses of power or discretion are be reviewed by entities not subordinate to
+        the actor’s chain of command.
+    </li>
+    <li>
+        Consequences are real. If wrongdoing is found, discipline and prosecution must be plausible, not merely
+        theoretical (or in recent years impossible).
+    </li>
+    <li>
+        Jurisdictional complexity is not a loophole. A system where accountability can be indefinitely delayed by forum
+        fights teaches citizens to distrust outcomes (Day, 2026).
+    </li>
+    <li>
+        Digital coercion is constrained by due process. Seizure and compelled authentication should be rare, reviewable,
+        and bounded—not casual and consequence-free.
+    </li>
+    <li>
+        The public can verify claims. Transparency matters because secrecy is where impunity breeds.
+    </li>
+</ol>
+<p>
+    Pretti’s case is instructive because reporting has emphasized both the existence of video evidence and the competing
+    narratives surrounding it, as well as the procedural and jurisdictional obstacles that can arise when state
+    authorities confront federal actors (ABC News, 2026; Day, 2026; The Guardian, 2026). When citizens conclude—even
+    mistakenly—that “even if I’m right, the system may not care,” they will extend that conclusion to digital life. They
+    will assume devices can be seized. They will assume coercive unlocking is a practical possibility. They will assume
+    third parties will comply first and explain later.
+</p>
+<p>
+    At that point, the society fractures. The well-resourced keep strong keys and strong legal defenses; the
+    less-resourced are told to adopt “modern authentication” while living with the suspicion that convenience will be
+    turned into pressure.
+</p>
+<hr/>
+<h3>The civic bottom line</h3>
+<hr/>
+<p>
+    A society cannot sustainably tell citizens, “Trust us,” while also demonstrating—through visible, incidents followed
+    by deceptive statements, as in the case of Alex Pretti's public execution—that coercive power may be applied
+    without credible consequence. Without this trust of law and order, there can be no trust in the society which asks
+    us to implicitly trust third party encryption.
+</p>
+<p>
+    So yes: ask whether we can trust security keys held by a third party under the current corrupt and lawless
+    administration. But do not stop there. Ask whether we can trust the institutions that surround those keys—banks,
+    email providers, vendors, etc., and the oversight structures which have business with the same administration and
+    benefit from their cooperation or who may capitulate if pressured.
+</p>
+<hr/>
+<h3>References</h3>
+<hr/>
+<p>
+    ABC News. (2026). A minute-by-minute timeline of the fatal shooting of Alex Pretti involving federal agents.
+    https://abcnews.go.com/Politics/minute-minute-timeline-fatal-shooting-alex-pretti-federal/story?id=129547199
+</p><p>
+    Apple. (2024, December 19). iCloud Keychain security overview. Apple Support.
+    https://support.apple.com/guide/security/icloud-keychain-security-overview-sec1c89c6f3b/web
+</p><p>
+    Blaze, M. (1994, August 20). Protocol failure in the Escrowed Encryption Standard.
+    https://www.mattblaze.org/papers/eesproto.pdf
+</p><p>
+    Cook, T. (2016, February 16). A message to our customers. Apple. https://www.apple.com/customer-letter/
+</p><p>
+    Day, J. (2026). The unprecedented challenge of prosecuting federal agents for killing Renee Good, Alex Pretti.
+    Minnesota Star Tribune.
+    https://www.startribune.com/the-unprecedented-challenge-of-prosecuting-federal-agents-for-killing-renee-good-alex-pretti/601565078
+</p><p>
+    FIDO Alliance. (n.d.). Passkeys. https://fidoalliance.org/passkeys/
+</p><p>
+    Gibbs, N. (2016, March 18). Tim Cook: The Apple CEO speaks up. TIME.
+    https://time.com/4258170/tim-cook-apple-ceo-interview/
+</p><p>
+    National Institute of Standards and Technology. (1994, February 9). FIPS PUB 185: Escrowed Encryption Standard
+    (EES). https://csrc.nist.gov/files/pubs/fips/185/final/docs/fips185.pdf
+</p><p>
+    National Institute of Standards and Technology. (1994, June 6). Statement in response to Blaze key escrow paper.
+    https://www.nist.gov/news-events/news/1994/06/statement-response-blaze-key-escrow-paper
+</p><p>
+    Sforza, J. (2015, July 8). FBI director: Encryption challenge must be solved soon. Houston Chronicle.
+    https://www.chron.com/neighborhood/fortbend/news/article/FBI-director-encryption-challenge-must-be-solved-9671365.php
+</p><p>
+    Temoshok, D., Choong, Y.-Y., Regenscheid, A., Galluzzo, R., Fenton, J. L., Richer, J., & Lefkovitz, N. (2025).
+    Digital Identity Guidelines: Authentication and authenticator management (NIST SP 800-63B-4). National Institute of
+    Standards and Technology. https://doi.org/10.6028/NIST.SP.800-63B-4
+</p><p>
+    The Guardian. (2026, January 24). Alex Pretti did not brandish gun, witnesses say in sworn testimony.
+    https://www.theguardian.com/us-news/2026/jan/24/alex-pretti-killing-witness-testimony
+</p><p>
+    United States v. Lavabit, LLC, 749 F.3d 276 (4th Cir. 2014).
+    https://law.justia.com/cases/federal/appellate-courts/ca4/13-4625/13-4625-2014-04-16.html
+</p><p>
+    U.S. Senate Committee on the Judiciary. (2015, July 8). Going dark: Encryption, technology, and the balance between
+    public safety and privacy (S. Hrg. 114-905). Congress.gov.
+    https://www.congress.gov/event/114th-congress/senate-event/LC74566/text
+</p><p>
+    World Wide Web Consortium. (2021, April 8). Web Authentication: An API for accessing public key credentials
+    (WebAuthn) Level 2 (W3C Recommendation). https://www.w3.org/TR/webauthn-2/
+</p><p>
+    Zetter, K. (2013, October 3). Edward Snowden’s e-mail provider defied FBI demands to turn over crypto keys,
+    documents show. WIRED. https://www.wired.com/2013/10/lavabit-unsealed/
+</p>
