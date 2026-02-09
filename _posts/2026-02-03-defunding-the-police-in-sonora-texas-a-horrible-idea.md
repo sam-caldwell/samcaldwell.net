@@ -2,7 +2,7 @@
 layout: page
 title: Defunding the Police in Sonora, Texas...a Horrible Idea
 date: 2026-02-03 09:49:52-0600
-description: In recent years, the city council and certain folks here in Sonora, Texas have been trying to defund the police.
+description: Sonora, Texas City Councilman Todd Munn called to defund the police in a Feb 2006 city council meeting.
 keywords: police, defunding, Sonora, Texas, Law enforcement, politics
 ---
 <p>
