@@ -1,0 +1,29 @@
+---
+layout: page
+title: Epitaphs
+description: A collection of epitaphs.
+keywords: epitaphs, tombstones, humor
+permalink: /epitaphs/
+---
+
+<p class="text-center"><small><em>A friend and I exchange ideas for good epitaphs regularly, and I wanted them captured here.</em></small></p>
+
+{% assign epitaph_pages = site.pages | where_exp: "p", "p.path contains 'epitaphs/'" %}
+{% assign epitaphs = epitaph_pages | sort: 'date' | reverse %}
+
+{% if epitaphs and epitaphs.size > 0 %}
+<ul class="list-group">
+  {% for e in epitaphs %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <a href="{{ e.url | relative_url }}">{{ e.title | default: e.name | default: e.url }}</a>
+    {% if e.date %}
+      <small class="text-muted">{{ e.date | date: "%b %d, %Y" }}</small>
+    {% endif %}
+  </li>
+  {% endfor %}
+  </ul>
+{% else %}
+<ul class="list-group">
+  <li class="list-group-item">No epitaphs yet.</li>
+  </ul>
+{% endif %}

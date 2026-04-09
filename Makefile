@@ -8,7 +8,7 @@ LIVERELOAD_PORT ?= 35729
 # Bind published ports to this host address (default: loopback only)
 BIND_ADDRESS ?= 127.0.0.1
 
-.PHONY: dev build stop post joke book
+.PHONY: dev build stop post joke epitaph book
 
 build:
 	@docker build -t $(IMAGE) .
@@ -88,6 +88,38 @@ joke:
 	  echo '---'; \
 	  echo; \
 	  echo '<!-- Write your joke below. -->'; \
+	} > "$$FILE"; \
+	echo "Created $$FILE"
+
+# Create a new epitaph page under epitaphs/
+# Usage: make epitaph TITLE="An Epitaph"
+epitaph:
+	@TITLE="$(TITLE)"; \
+	if [ -z "$$TITLE" ]; then \
+	  printf "Title: "; read -r TITLE; \
+	fi; \
+	if [ -z "$$TITLE" ]; then \
+	  echo "Error: TITLE is required. Use: make epitaph TITLE='My Epitaph'"; \
+	  exit 1; \
+	fi; \
+	SLUG=$$(printf "%s" "$$TITLE" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$$//g'); \
+	DATE=$$(date +%Y-%m-%d); \
+	TIME=$$(date +%H:%M:%S%z); \
+	FILE="epitaphs/$${SLUG}.html"; \
+	mkdir -p epitaphs; \
+	if [ -e "$$FILE" ]; then \
+	  echo "Error: $$FILE already exists"; \
+	  exit 1; \
+	fi; \
+	{ \
+	  echo '---'; \
+	  echo 'layout: page'; \
+	  printf 'title: %s\n' "$$TITLE"; \
+	  printf 'date: %s %s\n' "$$DATE" "$$TIME"; \
+	  echo 'description:'; \
+	  echo '---'; \
+	  echo; \
+	  echo '<!-- Write your epitaph below. -->'; \
 	} > "$$FILE"; \
 	echo "Created $$FILE"
 

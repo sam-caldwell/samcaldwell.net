@@ -22,6 +22,12 @@ defaults:
       type: "pages"
     values:
       layout: page
+  # Pages under epitaphs/ act as epitaph entries
+  - scope:
+      path: "epitaphs"
+      type: "pages"
+    values:
+      layout: page
   # Pages under jokes/ act as joke posts
   - scope:
       path: "jokes"
