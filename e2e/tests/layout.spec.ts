@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, gotoAndWait } from './fixtures';
 
 const NAV_TITLES = [
   'home', 'about', 'GPG Keys', 'blog', 'books',
@@ -7,7 +7,7 @@ const NAV_TITLES = [
 
 test.describe('site layout', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await gotoAndWait(page, '/');
   });
 
   test('header renders with profile photo', async ({ page }) => {

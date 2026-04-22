@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, gotoAndWait } from './fixtures';
 
 const NAV_ITEMS = [
   { title: 'home', url: '/' },
@@ -14,8 +14,7 @@ const NAV_ITEMS = [
 
 for (const item of NAV_ITEMS) {
   test(`nav "${item.title}" loads successfully at ${item.url}`, async ({ page }) => {
-    const response = await page.goto(item.url);
-    expect(response?.status()).toBe(200);
+    await gotoAndWait(page, item.url);
 
     // Every page except homepage should have a .page-title
     if (item.url !== '/') {

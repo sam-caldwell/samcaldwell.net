@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, gotoAndWait } from './fixtures';
 
 test.describe('homepage', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await gotoAndWait(page, '/');
   });
 
   test('page title contains site name', async ({ page }) => {

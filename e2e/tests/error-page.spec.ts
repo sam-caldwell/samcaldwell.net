@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, gotoAndWait } from './fixtures';
 
 test.describe('404 page', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/404.html');
+    await gotoAndWait(page, '/404.html');
   });
 
   test('displays 404 title', async ({ page }) => {

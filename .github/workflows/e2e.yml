@@ -35,6 +35,8 @@ jobs:
 
       - name: Run E2E tests
         run: npx playwright test --config e2e/playwright.config.ts
+        env:
+          CF_BYPASS_TOKEN: ${{ secrets.CF_BYPASS_TOKEN }}
 
       - name: Upload test report
         if: always()
