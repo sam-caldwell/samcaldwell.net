@@ -33,6 +33,18 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Verify Cloudflare bypass
+        run: |
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "X-CF-E2E-Bypass: ${CF_BYPASS_TOKEN}" \
+            https://samcaldwell.net/)
+          echo "HTTP status with bypass header: ${STATUS}"
+          if [ "$STATUS" = "403" ]; then
+            echo "::warning::Cloudflare bypass header not working — challenge still active (403)"
+          fi
+        env:
+          CF_BYPASS_TOKEN: ${{ secrets.CF_BYPASS_TOKEN }}
+
       - name: Run E2E tests
         run: npx playwright test --config e2e/playwright.config.ts
         env:
