@@ -60,4 +60,11 @@ test.describe('projects', () => {
       page.locator('a[href*="github.com/sam-caldwell/CRSCE"]')
     ).toBeVisible();
   });
+
+  test('lists Asymmetric Effort GreyNet project', async ({ page }) => {
+    await page.goto('/projects/');
+    await expect(
+      page.locator('strong', { hasText: 'Asymmetric Effort GreyNet' })
+    ).toBeVisible();
+  });
 });
