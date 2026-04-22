@@ -28,6 +28,11 @@ make epitaph TITLE="Title"      # Scaffold a new epitaph page in epitaphs/
 
 LAN access: `BIND_ADDRESS=0.0.0.0 make dev`
 
+```sh
+npm ci                          # Install Playwright and dependencies
+npx playwright test --config e2e/playwright.config.ts  # Run e2e tests against production
+```
+
 ## Project Structure
 
 ```

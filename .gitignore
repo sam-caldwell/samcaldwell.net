@@ -24,6 +24,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Playwright
+playwright-report/
+test-results/
+
 # Logs and temp files
 *.log
 *.tmp
