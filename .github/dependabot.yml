@@ -13,6 +13,12 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Keep npm packages (Playwright) up to date
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
   # Watch the Docker base image tags
   - package-ecosystem: "docker"
     directory: "/"

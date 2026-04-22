@@ -57,3 +57,9 @@ exclude:
   - Gemfile
   - Gemfile.lock
   - README.md
+  - package.json
+  - package-lock.json
+  - e2e/
+  - node_modules/
+  - playwright-report/
+  - test-results/
