@@ -20,6 +20,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Build Jekyll site
+        run: bundle exec jekyll build
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -33,22 +44,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Verify Cloudflare bypass
-        run: |
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "X-CF-E2E-Bypass: ${CF_BYPASS_TOKEN}" \
-            https://samcaldwell.net/)
-          echo "HTTP status with bypass header: ${STATUS}"
-          if [ "$STATUS" = "403" ]; then
-            echo "::warning::Cloudflare bypass header not working — challenge still active (403)"
-          fi
-        env:
-          CF_BYPASS_TOKEN: ${{ secrets.CF_BYPASS_TOKEN }}
-
       - name: Run E2E tests
         run: npx playwright test --config e2e/playwright.config.ts
-        env:
-          CF_BYPASS_TOKEN: ${{ secrets.CF_BYPASS_TOKEN }}
 
       - name: Upload test report
         if: always()
