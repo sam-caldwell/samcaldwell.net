@@ -1,28 +1,32 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
 /**
- * Wait for a Cloudflare challenge page ("Just a moment...") to resolve.
- * If the page is not a challenge, this returns immediately.
- */
-async function waitForCloudflare(page: Page, timeout = 15_000): Promise<void> {
-  const title = await page.title();
-  if (title === 'Just a moment...') {
-    await page.waitForFunction(
-      () => document.title !== 'Just a moment...',
-      { timeout },
-    );
-    // Allow the real page to fully render after challenge clears
-    await page.waitForLoadState('domcontentloaded');
-  }
-}
-
-/**
- * Navigate to a URL and wait for any Cloudflare challenge to resolve
- * before returning. Throws if the challenge never clears.
+ * Navigate to a URL, log diagnostic info, and wait for any Cloudflare
+ * challenge to resolve before returning.
  */
 export async function gotoAndWait(page: Page, url: string): Promise<void> {
-  await page.goto(url, { waitUntil: 'commit' });
-  await waitForCloudflare(page);
+  const response = await page.goto(url, { waitUntil: 'commit' });
+  const status = response?.status() ?? 'null';
+  const title = await page.title();
+
+  console.log(`[e2e] goto ${url} — HTTP ${status}, title="${title}"`);
+
+  if (title === 'Just a moment...') {
+    console.log(`[e2e] Cloudflare challenge detected, waiting for resolution...`);
+    try {
+      await page.waitForFunction(
+        () => document.title !== 'Just a moment...',
+        { timeout: 10_000 },
+      );
+      const newTitle = await page.title();
+      console.log(`[e2e] Challenge resolved — title="${newTitle}"`);
+    } catch {
+      const bodyText = await page.locator('body').innerText().catch(() => '<unreadable>');
+      console.log(`[e2e] Challenge did NOT resolve within 10s. Body: ${bodyText.slice(0, 500)}`);
+      throw new Error(`Cloudflare challenge did not resolve for ${url} (HTTP ${status})`);
+    }
+  }
+
   await page.waitForLoadState('domcontentloaded');
 }
 
