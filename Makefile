@@ -8,7 +8,7 @@ LIVERELOAD_PORT ?= 35729
 # Bind published ports to this host address (default: loopback only)
 BIND_ADDRESS ?= 127.0.0.1
 
-.PHONY: dev build stop post joke epitaph book
+.PHONY: dev build stop serve post joke epitaph book
 
 build:
 	@docker build -t $(IMAGE) .
@@ -25,6 +25,18 @@ dev: build
 
 stop:
 	@docker rm -f $(CONTAINER) 2>/dev/null || true
+
+# Serve locally without Docker (useful inside the Claude dev container)
+# Usage: make serve [SERVE_PORT=8001]
+SERVE_PORT ?= 8001
+serve:
+	@echo "Starting Jekyll dev server on http://localhost:$(SERVE_PORT)"
+	bundle exec jekyll serve \
+		--host 0.0.0.0 \
+		--port $(SERVE_PORT) \
+		--livereload \
+		--force_polling \
+		--trace
 
 # Create a new blog post
 # Usage: make post TITLE="Your Post Title"

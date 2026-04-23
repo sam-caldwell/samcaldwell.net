@@ -20,6 +20,7 @@ Deployed to GitHub Pages. Local dev is containerized with Docker and driven via 
 make dev                        # Build Docker image + start Jekyll dev server (localhost:4000)
 make stop                       # Stop the dev container
 make build                      # Build Docker image only
+make serve                      # Serve locally without Docker on tcp/8001 (for Claude dev container)
 make post TITLE="My Post"       # Scaffold a new blog post in _posts/
 make book TITLE="Book Title"    # Scaffold a new book page in books/
 make joke TITLE="A Joke"        # Scaffold a new joke page in jokes/
@@ -83,6 +84,17 @@ docker/          Docker entrypoint script
 - Static output only — no server-side runtime.
 - CodeQL scans JavaScript and Ruby on push/PR/weekly schedule.
 - Dependabot auto-merges patch and minor dependency updates (squash merge).
+
+## Semantic Versioning
+
+The site uses semantic versioning (`MAJOR.MINOR.PATCH`) defined in `_config.yml` as `version:`.
+The version is displayed in the page footer via `{{ site.version }}`.
+
+- **MAJOR** bump: Adding a new feature or content section (e.g. adding "projects" category, "dashboards" section).
+- **MINOR** bump: Adding new content within an existing section (e.g. new blog post, new book review, new joke).
+- **PATCH** bump: Cosmetic changes, bug fixes, dependency updates, CI tweaks, config changes.
+
+Always update `version:` in `_config.yml` when committing changes.
 
 ## Key Files
 
