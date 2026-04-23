@@ -6,12 +6,13 @@ description: GPG Encryption Keys
 keywords: gpg keys, encryption, secure communication, commit signing
 ---
 
-While John Cornyn may not believe you should have secure communications, I definitely do!
-
-
-## For Communication:
-
-<pre>
+<div class="list-group">
+  <div class="list-group-item">
+    <p class="mb-0">While John Cornyn may not believe you should have secure communications, I definitely do!</p>
+  </div>
+  <div class="list-group-item">
+    <h2>For Communication:</h2>
+    <pre>
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mDMEaT4YZRYJKwYBBAHaRw8BAQdAM0n6eh/ZWQ9oyzSOMXHbzWyJJMh8U9sHWF1S
@@ -26,17 +27,16 @@ lhWWDN6IAP4+LJK+FbO9TqNap4T3I8XtORhbY+UqeqioRbUS6mWYCQ==
 =Ce7T
 -----END PGP PUBLIC KEY BLOCK-----
 </pre>
-
-
-## For Code Verification
-
-<pre>
+  </div>
+  <div class="list-group-item">
+    <h2>For Code Verification</h2>
+    <pre>
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mDMEaJvORRYJKwYBBAHaRw8BAQdA9A9EuGMw3D5K3HffpG70NNUCGUh6RO+3hqO5
 Jt30MVm0LlNhbSBDYWxkd2VsbCAobWJwLm00KSA8Z2l0aHViQHNhbWNhbGR3ZWxs
 Lm5ldD6IkwQTFgoAOxYhBHrVh65djPfi1I6AU8d3AyB+OHJUBQJom85FAhsDBQsJ
-CAcCAiICBhUKCQgLAgQWAgMBAh4HAheAAAoJEMd3AyB+OHJUXEIA/i0tOFR1+w3Y
+CAcCAiICBhUKCQgLAgQWAgMBAh4HAheAAAoJEMd3AyB+OHJUXCIA/i0tOFR1+w3Y
 piLGaLBLJMR7ydEMjHnbIwYru1Qg+IeGAP4i+t2ySS/8/Apdn7JT+nsOfBTzOKeS
 xXh0C5E69PVKB7g4BGibzkUSCisGAQQBl1UBBQEBB0DDRmw8lk06QBwJqXGWHQcK
 YfgkreZU68frI09jGyQqMwMBCAeIeAQYFgoAIBYhBHrVh65djPfi1I6AU8d3AyB+
@@ -45,3 +45,5 @@ QTmBmNcesX2FnddNAQCFPU0A+6Jr/8yPvW3dIhDYnsxIa/N5ia+tlFPmzjUDCQ==
 =vat6
 -----END PGP PUBLIC KEY BLOCK-----
 </pre>
+  </div>
+</div>
