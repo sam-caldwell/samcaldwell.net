@@ -37,9 +37,10 @@ header .card {
 
 /* Footer background and readable text */
 footer {
-    background-color: #C0C0C0;
-    color: #111111;
+    background-color: #4E2A1E;
+    color: #F0F0F0;
     height: 30px;
+    border: 2px outset #7a4a3a;
 }
 
 footer .container {
@@ -50,9 +51,10 @@ footer .container {
 
 /* Nav bar styling */
 .site-nav {
-    background-color: #C0C0C0;
-    color: #111111;
+    background-color: #4E2A1E;
+    color: #F0F0F0;
     height: 30px;
+    border: 2px outset #7a4a3a;
 }
 
 .site-nav .container {
@@ -65,15 +67,17 @@ footer .container {
 }
 
 .site-nav .nav-link {
-    color: #111111;
+    color: #F0F0F0;
     font-variant: small-caps;
     font-variant-caps: small-caps;
     white-space: nowrap;
 }
 
 .site-nav .nav-link:hover, .site-nav .nav-link:focus {
-    color: #000000;
+    color: #ffffff;
     text-decoration: none;
+    background-color: #7a4a3a;
+    border-radius: .25rem;
 }
 
 /* Inline code and code blocks (dark) */
@@ -136,6 +140,15 @@ pre {
 
 .list-group-item a:hover, .list-group-item a:focus {
     color: #002171;
+}
+
+/* Hover effect for content listing items (nested lists only) */
+.list-group .list-group .list-group-item {
+    transition: background-color 0.15s ease;
+}
+
+.list-group .list-group .list-group-item:hover {
+    background-color: #f5ef8a !important;
 }
 
 /* Simple text alignment helpers */
