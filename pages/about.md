@@ -4,28 +4,20 @@ permalink: /about/
 description: About Sam Caldwell.
 keywords: about, sam, caldwell, samcaldwell, sam caldwell, software engineer, security engineer, devops engineer, sre, sonora, texas
 ---
-<div class="list-group">
-  <div class="list-group-item">
-    <p>
-      I’m a software engineer focused on building secure, reliable systems—usually at the intersection of product
-      engineering and cybersecurity. I like work that’s practical and measurable: reducing risk, improving performance,
-      and making complex systems easier to operate.
-    </p>
-    <p>
-      My day-to-day tends to revolve around backend services, automation, and developer tooling. I’m especially interested
-      in how systems fail in the real world—misconfigurations, unsafe defaults, brittle dependencies—and how to design
-      guardrails that make the secure path the easiest path. I enjoy turning messy requirements into clean interfaces, and
-      I’m happiest when I can ship something small, iterate quickly, and prove it works with good tests and observability.
-    </p>
-    <p>
-      I also spend time on security research and hands-on analysis: threat modeling, vulnerability triage, and building
-      tools that help teams detect issues earlier. I care about clarity and correctness, and I prefer solutions that are
-      simple enough to explain, audit, and maintain.
-    </p>
-    <p class="mb-0">
-      This site is where I share what I’m learning—write-ups on engineering and security topics, notes from experiments,
-      and occasional deep dives into tools and techniques. If something here helps you, or if you want to compare notes,
-      feel free to reach out.
-    </p>
-  </div>
-</div>
+
+I'm a software engineer focused on building secure, reliable systems—usually at the intersection of product
+engineering and cybersecurity. I like work that's practical and measurable: reducing risk, improving performance,
+and making complex systems easier to operate.
+
+My day-to-day tends to revolve around backend services, automation, and developer tooling. I'm especially interested
+in how systems fail in the real world—misconfigurations, unsafe defaults, brittle dependencies—and how to design
+guardrails that make the secure path the easiest path. I enjoy turning messy requirements into clean interfaces, and
+I'm happiest when I can ship something small, iterate quickly, and prove it works with good tests and observability.
+
+I also spend time on security research and hands-on analysis: threat modeling, vulnerability triage, and building
+tools that help teams detect issues earlier. I care about clarity and correctness, and I prefer solutions that are
+simple enough to explain, audit, and maintain.
+
+This site is where I share what I'm learning—write-ups on engineering and security topics, notes from experiments,
+and occasional deep dives into tools and techniques. If something here helps you, or if you want to compare notes,
+feel free to reach out.

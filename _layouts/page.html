@@ -1,8 +1,14 @@
 ---
 layout: default
 ---
-{% if page.title %}
-<h1 class="page-title">{{ page.title }}</h1>
-{% endif %}
-{{ content }}
+<div class="list-group">
+  {% if page.title %}
+  <div class="list-group-item">
+    <h1 class="page-title mb-0">{{ page.title }}</h1>
+  </div>
+  {% endif %}
+  <div class="list-group-item">
+    {{ content }}
+  </div>
+</div>
 
