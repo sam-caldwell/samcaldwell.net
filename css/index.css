@@ -119,9 +119,15 @@ pre {
 .gist .gist-meta { background: #0d1117 !important; color: #8b949e !important; border-top: 1px solid #30363d !important; }
 
 /* Page content container styling */
+.list-group {
+    --bs-list-group-bg: #fcf7b6;
+    --bs-list-group-color: #111111;
+    --bs-list-group-border-color: #e0db8a;
+}
+
 .list-group-item {
-    background-color: #fcf7b6;
-    color: #111111;
+    background-color: #fcf7b6 !important;
+    color: #111111 !important;
 }
 
 .list-group-item a {
